@@ -1,0 +1,432 @@
+
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+
+@model (IReadOnlyList<CommercePlanRow> Plans, IReadOnlyList<CommerceContractRow> Contracts)?
+
+<div class="abrit-ops abrit-pricing" dir="rtl">
+
+    <a class="abrit-ops__back" href="/Admin/AbrIT">
+        بازگشت به داشبورد
+    </a>
+
+    <header class="abrit-ops__page-heading">
+        <h1>تعرفه پکیج‌ها و شرایط قرارداد</h1>
+        <p>
+            قیمت‌های جاری از کاتالوگ تجاری AbrIT خوانده می‌شوند.
+            مبالغ سفارش‌ها و اشتراک‌های پیشین حفظ می‌شوند.
+        </p>
+    </header>
+
+    @if (ViewBag.PricingNotice is string notice)
+    {
+        <p class="abrit-pricing-message" role="status">
+            @notice
+        </p>
+    }
+
+    @if (ViewBag.PricingError is string error)
+    {
+        <p class="abrit-pricing-message abrit-pricing-message--error"
+           role="alert">
+            @error
+        </p>
+    }
+
+    @if (Model is null)
+    {
+        <p class="abrit-ops__unavailable">
+            دریافت کاتالوگ ممکن نشد.
+        </p>
+    }
+    else
+    {
+        <!-- =============================== -->
+        <!-- Add new plan -->
+        <!-- =============================== -->
+
+        <details class="abrit-pricing-panel">
+            <summary>افزودن پکیج جدید</summary>
+
+            <form class="abrit-pricing-form"
+                  method="post"
+                  action="/Admin/AbrIT/Plans/SavePlan">
+
+                @Html.AntiForgeryToken()
+
+                @await Html.PartialAsync(
+                    "_PlanPricingFields",
+                    null,
+                    new ViewDataDictionary<CommercePlanRow>(
+                        ViewData,
+                        null
+                    )
+                )
+
+            </form>
+        </details>
+
+        <!-- =============================== -->
+        <!-- Plans table -->
+        <!-- =============================== -->
+
+        <div class="abrit-admin-table-wrap">
+
+            <table class="abrit-admin-table">
+
+                <caption class="sr-only">
+                    تعرفه پکیج‌ها
+                </caption>
+
+                <thead>
+                    <tr>
+                        <th>پکیج</th>
+                        <th>قیمت ماهانه (تومان)</th>
+                        <th>کاربر شامل</th>
+                        <th>Endpoint شامل</th>
+                        <th>فضای Drive</th>
+                        <th>کاربر اضافه/ماه</th>
+                        <th>Endpoint اضافه/ماه</th>
+                        <th>SLA</th>
+                        <th>پشتیبانی</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var p in Model.Value.Plans)
+                    {
+                        <tr>
+
+                            <td>
+                                <strong>@p.NameFa</strong>
+
+                                @if (p.Featured)
+                                {
+                                    <span title="پکیج پیشنهادی">★</span>
+                                }
+                            </td>
+
+                            <td>
+                                @p.MonthlyPriceToman.ToString("N0")
+                            </td>
+
+                            <td>@p.IncludedUsers</td>
+
+                            <td>@p.IncludedEndpoints</td>
+
+                            <td>
+                                @(
+                                    (p.DriveQuotaBytes / 1073741824m)
+                                    .ToString(
+                                        "0.########",
+                                        System.Globalization.CultureInfo.InvariantCulture
+                                    )
+                                ) GB
+                            </td>
+
+                            <td>
+                                @p.ExtraUserFeeTomanPerMonth.ToString("N0")
+                            </td>
+
+                            <td>
+                                @p.ExtraEndpointFeeTomanPerMonth.ToString("N0")
+                            </td>
+
+                            <td>@p.SlaLabelFa</td>
+
+                            <td>@p.SupportHoursFa</td>
+
+                            <td>
+                                @(p.Active ? "فعال" : "غیرفعال")
+                            </td>
+
+                            <td class="abrit-pricing-operations">
+
+                                <!-- Edit plan -->
+
+                                <details class="abrit-pricing-panel">
+
+                                    <summary>ویرایش</summary>
+
+                                    <form class="abrit-pricing-form"
+                                          method="post"
+                                          action="/Admin/AbrIT/Plans/SavePlan">
+
+                                        @Html.AntiForgeryToken()
+
+                                        @await Html.PartialAsync(
+                                            "_PlanPricingFields",
+                                            p
+                                        )
+
+                                    </form>
+
+                                </details>
+
+                                <!-- Activate or deactivate plan -->
+
+                                <form class="abrit-pricing-form abrit-pricing-inline"
+                                      method="post"
+                                      action="/Admin/AbrIT/Plans/ChangeStatus">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="kind"
+                                           value="plans" />
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@p.Code" />
+
+                                    <input type="hidden"
+                                           name="revision"
+                                           value="@p.Revision" />
+
+                                    <input type="hidden"
+                                           name="active"
+                                           value="@(!p.Active)" />
+
+                                    <button type="submit">
+                                        @(p.Active
+                                            ? "غیرفعال‌سازی"
+                                            : "فعال‌سازی")
+                                    </button>
+
+                                </form>
+
+                                <!-- Delete plan -->
+
+                                <form class="abrit-pricing-form abrit-pricing-inline"
+                                      method="post"
+                                      action="/Admin/AbrIT/Plans/DeletePricing"
+                                      data-confirm="این پکیج فقط در صورت نداشتن وابستگی حذف می‌شود. ادامه می‌دهید؟">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="kind"
+                                           value="plans" />
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@p.Code" />
+
+                                    <input type="hidden"
+                                           name="revision"
+                                           value="@p.Revision" />
+
+                                    <button type="submit">
+                                        حذف
+                                    </button>
+
+                                </form>
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <!-- =============================== -->
+        <!-- Contract conditions -->
+        <!-- =============================== -->
+
+        <h2 class="abrit-ops__terms-title">
+            شرایط مدت قرارداد
+        </h2>
+
+        <!-- Add contract -->
+
+        <details class="abrit-pricing-panel">
+
+            <summary>افزودن شرایط قرارداد</summary>
+
+            <form class="abrit-pricing-form"
+                  method="post"
+                  action="/Admin/AbrIT/Plans/SaveContract">
+
+                @Html.AntiForgeryToken()
+
+                @await Html.PartialAsync(
+                    "_ContractPricingFields",
+                    null,
+                    new ViewDataDictionary<CommerceContractRow>(
+                        ViewData,
+                        null
+                    )
+                )
+
+            </form>
+
+        </details>
+
+        <!-- Contracts table -->
+
+        <div class="abrit-admin-table-wrap">
+
+            <table class="abrit-admin-table">
+
+                <thead>
+                    <tr>
+                        <th>مدت</th>
+                        <th>تخفیف</th>
+                        <th>راه‌اندازی</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var c in Model.Value.Contracts)
+                    {
+                        <tr>
+
+                            <td>
+                                @c.Months ماهه
+                            </td>
+
+                            <td>
+                                @(c.DiscountRate * 100)%
+                            </td>
+
+                            <td>
+                                @(c.OnboardingRate * 100)%
+                                قیمت یک ماه
+                            </td>
+
+                            <td>
+                                @(c.Active ? "فعال" : "غیرفعال")
+                            </td>
+
+                            <td class="abrit-pricing-operations">
+
+                                <!-- Edit contract -->
+
+                                <details class="abrit-pricing-panel">
+
+                                    <summary>ویرایش</summary>
+
+                                    <form class="abrit-pricing-form"
+                                          method="post"
+                                          action="/Admin/AbrIT/Plans/SaveContract">
+
+                                        @Html.AntiForgeryToken()
+
+                                        @await Html.PartialAsync(
+                                            "_ContractPricingFields",
+                                            c
+                                        )
+
+                                    </form>
+
+                                </details>
+
+                                <!-- Activate or deactivate contract -->
+
+                                <form class="abrit-pricing-form abrit-pricing-inline"
+                                      method="post"
+                                      action="/Admin/AbrIT/Plans/ChangeStatus">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="kind"
+                                           value="contracts" />
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@c.Months" />
+
+                                    <input type="hidden"
+                                           name="revision"
+                                           value="@c.Revision" />
+
+                                    <input type="hidden"
+                                           name="active"
+                                           value="@(!c.Active)" />
+
+                                    <button type="submit">
+                                        @(c.Active
+                                            ? "غیرفعال‌سازی"
+                                            : "فعال‌سازی")
+                                    </button>
+
+                                </form>
+
+                                <!-- Delete contract -->
+
+                                <form class="abrit-pricing-form abrit-pricing-inline"
+                                      method="post"
+                                      action="/Admin/AbrIT/Plans/DeletePricing"
+                                      data-confirm="این مدت قرارداد فقط در صورت نداشتن وابستگی حذف می‌شود. ادامه می‌دهید؟">
+
+                                    @Html.AntiForgeryToken()
+
+                                    <input type="hidden"
+                                           name="kind"
+                                           value="contracts" />
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@c.Months" />
+
+                                    <input type="hidden"
+                                           name="revision"
+                                           value="@c.Revision" />
+
+                                    <button type="submit">
+                                        حذف
+                                    </button>
+
+                                </form>
+
+                            </td>
+
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+    }
+
+</div>
+
+<script>
+    document.querySelectorAll('.abrit-pricing-form').forEach(form => {
+        form.addEventListener('submit', event => {
+
+            const question = form.getAttribute('data-confirm');
+
+            if (question && !window.confirm(question)) {
+                event.preventDefault();
+                return;
+            }
+
+            const button = form.querySelector('button[type="submit"]');
+
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'در حال ثبت…';
+            }
+
+        });
+    });
+
+    document.querySelectorAll('[data-close-form]').forEach(button => {
+        button.addEventListener('click', () => {
+            button.closest('details')?.removeAttribute('open');
+        });
+    });
+</script>

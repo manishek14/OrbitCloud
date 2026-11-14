@@ -1,0 +1,295 @@
+@model AbrITPortal.Areas.Admin.Controllers.OperationsAdminPageModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    var pageCount = Math.Max(1, (int)Math.Ceiling(Model.TotalCount / (double)Model.PageSize));
+}
+<div class="abrit-admin-page" dir="rtl">
+    <header class="page-heading">
+        <div>
+            <span class="eyebrow">ABRIT OPERATIONS</span>
+            <h1>@Model.Title</h1>
+            <p>@Model.Description</p>
+        </div>
+        @if (Model.Page == "Customers" || Model.Page == "Orders")
+        {
+            <form method="get" class="abrit-admin-search" role="search">
+                <label class="visually-hidden" for="operations-search">جست‌وجو</label>
+                <input id="operations-search" name="q" value="@Model.Query" class="form-control" type="search"
+                       placeholder="@(Model.Page == "Customers" ? "نام کاربری، ایمیل یا موبایل" : "شناسه، عنوان، وضعیت یا مشتری")" />
+                <button class="btn btn-primary" type="submit">جست‌وجو</button>
+            </form>
+        }
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-info" role="status">@Model.StatusMessage</div>
+    }
+
+    @if (Model.Page == "Customers")
+    {
+        <section class="admin-section">
+            <div class="abrit-admin-toolbar"><h2>فهرست مشتریان <small class="text-muted">(@Model.TotalCount)</small></h2></div>
+            <div class="table-responsive">
+                <table class="table admin-table">
+                    <thead><tr><th>نام کاربری</th><th>ایمیل</th><th>موبایل</th><th>تأیید ایمیل</th><th>تأیید موبایل</th><th>وضعیت حساب</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var customer in Model.Customers)
+                    {
+                        <tr>
+                            <td>@customer.UserName</td>
+                            <td dir="ltr">@(!string.IsNullOrWhiteSpace(customer.Email) ? customer.Email : "—")</td>
+                            <td dir="ltr">@(!string.IsNullOrWhiteSpace(customer.Mobile) ? customer.Mobile : "—")</td>
+                            <td>@BooleanStatus(customer.EmailVerified)</td>
+                            <td>@BooleanStatus(customer.MobileVerified)</td>
+                            <td>@AccountStatus(customer.Enabled)</td>
+                            <td><a class="btn btn-sm btn-outline-primary" href="/Admin/AbrIT/Customers/@Uri.EscapeDataString(customer.Id)">جزئیات</a></td>
+                        </tr>
+                    }
+                    @if (Model.Customers.Count == 0)
+                    {
+                        <tr><td colspan="7"><div class="portal-empty-state portal-empty-state--compact"><h3 class="portal-empty-state__title">مشتری‌ای پیدا نشد</h3><p>عبارت جست‌وجو را تغییر دهید یا بعداً دوباره بررسی کنید.</p></div></td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @Pagination()
+        </section>
+    }
+
+    @if (Model.Page == "CustomerDetails" && Model.Customer is { } customerDetails)
+    {
+        <a class="btn btn-link px-0 mb-3" href="/Admin/AbrIT/Customers">بازگشت به فهرست مشتریان</a>
+        <section class="admin-section">
+            <h2>اطلاعات حساب</h2>
+            <dl class="abrit-admin-detail-grid">
+                <div><dt>نام کاربری</dt><dd>@customerDetails.UserName</dd></div>
+                <div><dt>ایمیل</dt><dd dir="ltr">@(customerDetails.Email ?? "—")</dd></div>
+                <div><dt>موبایل</dt><dd dir="ltr">@(customerDetails.Mobile ?? "—")</dd></div>
+                <div><dt>تأیید ایمیل</dt><dd>@BooleanStatus(customerDetails.EmailVerified)</dd></div>
+                <div><dt>تأیید موبایل</dt><dd>@BooleanStatus(customerDetails.MobileVerified)</dd></div>
+                <div><dt>وضعیت حساب</dt><dd>@AccountStatus(customerDetails.Enabled)</dd></div>
+                <div><dt>شناسه</dt><dd class="cell-mono">@customerDetails.Id</dd></div>
+            </dl>
+        </section>
+        <section class="admin-section">
+            <h2>سفارش‌های مشتری</h2>
+            @OrderTable(Model.Orders)
+        </section>
+    }
+
+    @if (Model.Page == "Orders" || Model.Page == "Provisioning")
+    {
+        <section class="admin-section">
+            <div class="abrit-admin-toolbar"><h2>سفارش‌های منتشرشده <small class="text-muted">(@Model.TotalCount)</small></h2></div>
+            @if (Model.Page == "Provisioning")
+            {
+                <div class="table-responsive"><table class="table admin-table">
+                    <thead><tr><th>مشتری</th><th>سفارش</th><th>وضعیت سفارش</th><th>Provisioning</th><th>وضعیت ارائه‌دهنده</th><th>آخرین عملیات</th><th>خطای پاک‌سازی‌شده</th></tr></thead>
+                    <tbody>
+                    @foreach (var provisioning in Model.Orders)
+                    {
+                        <tr>
+                            <td>@(provisioning.CustomerName ?? provisioning.OwnerId)</td>
+                            <td><a href="/Admin/AbrIT/Orders/@Uri.EscapeDataString(provisioning.Id)">@provisioning.Id</a></td>
+                            <td><span class="status-badge">@provisioning.Status</span></td>
+                            <td>@(provisioning.ProvisioningStatus ?? "در رکورد موجود نیست")</td>
+                            <td>@(provisioning.ProviderState ?? "در رکورد موجود نیست")</td>
+                            <td>@(provisioning.LastOperation ?? "در رکورد موجود نیست")</td>
+                            <td>@(provisioning.SanitizedError ?? "در رکورد موجود نیست")</td>
+                        </tr>
+                    }
+                    @if (Model.Orders.Count == 0)
+                    {
+                        <tr><td colspan="7"><div class="portal-empty-state portal-empty-state--compact"><h3 class="portal-empty-state__title">سفارشی برای بررسی وجود ندارد</h3></div></td></tr>
+                    }
+                    </tbody>
+                </table></div>
+            }
+            else
+            {
+                @OrderTable(Model.Orders)
+            }
+            @Pagination()
+        </section>
+    }
+
+    @if (Model.Page == "OrderDetails" && Model.Order is { } orderDetails)
+    {
+        <a class="btn btn-link px-0 mb-3" href="/Admin/AbrIT/Orders">بازگشت به فهرست سفارش‌ها</a>
+        <section class="admin-section">
+            <h2>@orderDetails.Title</h2>
+            <dl class="abrit-admin-detail-grid">
+                <div><dt>شناسه سفارش</dt><dd class="cell-mono">@orderDetails.Id</dd></div>
+                <div><dt>نام کاربری مشتری</dt><dd>@(orderDetails.CustomerName ?? "حساب مشتری پیدا نشد")</dd></div>
+                <div><dt>ایمیل مشتری</dt><dd dir="ltr">@(orderDetails.CustomerEmail ?? "—")</dd></div>
+                <div><dt>شناسه مالک سفارش</dt><dd class="cell-mono">@orderDetails.OwnerId</dd></div>
+                <div><dt>وضعیت ثبت‌شده</dt><dd><span class="status-badge">@orderDetails.Status</span></dd></div>
+                <div><dt>تاریخ ایجاد</dt><dd dir="ltr">@orderDetails.Created</dd></div>
+                <div><dt>پلن</dt><dd>@(orderDetails.Plan ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>مدت قرارداد</dt><dd>@(orderDetails.ContractMonths ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>تعداد کاربران</dt><dd>@(orderDetails.UserCount ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>مبلغ</dt><dd>@(orderDetails.Amount ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>وضعیت پرداخت</dt><dd>@(orderDetails.PaymentStatus ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>وضعیت provisioning</dt><dd>@(orderDetails.ProvisioningStatus ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>وضعیت ارائه‌دهنده</dt><dd>@(orderDetails.ProviderState ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>آخرین عملیات</dt><dd>@(orderDetails.LastOperation ?? "در رکورد موجود نیست")</dd></div>
+                <div><dt>خطای پاک‌سازی‌شده</dt><dd>@(orderDetails.SanitizedError ?? "در رکورد موجود نیست")</dd></div>
+            </dl>
+        </section>
+    }
+
+    @if (Model.Page == "Reports")
+    {
+        <section class="admin-section">
+            <h2>شاخص‌های موجود</h2>
+            <div class="table-responsive"><table class="table admin-table">
+                <thead><tr><th>شاخص</th><th>مقدار</th><th>منبع و محدودیت</th></tr></thead>
+                <tbody>
+                @foreach (var report in Model.Reports)
+                {
+                    <tr><th scope="row">@report.Label</th><td>@report.Value</td><td>@report.Description</td></tr>
+                }
+                </tbody>
+            </table></div>
+            <p class="text-muted">روند رشد مشتریان، درآمد و توزیع سرویس در مدل دادهٔ فعلی قابل محاسبه نیست؛ ارقام مالی ساختگی نمایش داده نمی‌شوند.</p>
+        </section>
+    }
+
+    @if (Model.Page == "Settings")
+    {
+        <section class="admin-section">
+            <h2>تنظیمات Orchard Core</h2>
+            <p>برای تنظیمات بومی Orchard به صفحهٔ تنظیمات بروید. این پنل هیچ مقدار محرمانه‌ای را بازخوانی یا نمایش نمی‌دهد.</p>
+            <a class="btn btn-primary" href="/Admin/Settings">رفتن به تنظیمات Orchard</a>
+        </section>
+    }
+
+    @if (Model.Page == "Drive")
+    {
+        <section class="admin-section">
+            <h2>وضعیت integration</h2>
+            <p>@Model.StatusMessage</p>
+            <p class="text-muted">جزئیات آدرس، نام کاربری فنی و اعتبارنامهٔ Drive عمداً در رابط مدیریتی نمایش داده نمی‌شوند.</p>
+        </section>
+        <section class="admin-section">
+            <h2>وضعیت واقعی Drive مشتریان</h2>
+            <p class="text-muted">برای هر بارگذاری، حداکثر ۵ حساب بررسی می‌شود؛ نتایج از سرویس Drive موجود می‌آیند و هیچ پوشه‌ای ساخته یا تغییر داده نمی‌شود.</p>
+            <div class="table-responsive"><table class="table admin-table">
+                <thead><tr><th>مشتری</th><th>ایمیل</th><th>سفارش مرتبط</th><th>وضعیت پوشه</th><th>مصرف / سهمیه (بایت)</th><th>جزئیات</th></tr></thead>
+                <tbody>
+                @foreach (var driveStatus in Model.Drives)
+                {
+                    <tr>
+                        <td><a href="/Admin/AbrIT/Customers/@Uri.EscapeDataString(driveStatus.UserId)">@driveStatus.UserName</a></td>
+                        <td dir="ltr">@(driveStatus.Email ?? "—")</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(driveStatus.RelatedOrderId))
+                            {
+                                <a href="/Admin/AbrIT/Orders/@Uri.EscapeDataString(driveStatus.RelatedOrderId)">@driveStatus.RelatedOrderId</a>
+                            }
+                            else
+                            {
+                                <span>—</span>
+                            }
+                        </td>
+                        <td><span class="status-badge">@DriveStateName(driveStatus.State)</span></td>
+                        <td dir="ltr">@(driveStatus.UsedBytes?.ToString("N0") ?? "—") / @(driveStatus.TotalBytes?.ToString("N0") ?? "—")</td>
+                        <td>@(driveStatus.Detail ?? "—")</td>
+                    </tr>
+                }
+                @if (Model.Drives.Count == 0)
+                {
+                    <tr><td colspan="6"><div class="portal-empty-state portal-empty-state--compact"><h3 class="portal-empty-state__title">مشتری‌ای برای بررسی وجود ندارد</h3></div></td></tr>
+                }
+                </tbody>
+            </table></div>
+            @Pagination()
+        </section>
+    }
+
+    @if (Model.Page == "Provisioning")
+    {
+        <section class="admin-section">
+            <h2>وضعیت عملیات</h2>
+            <p class="text-muted">در صورت وجود فیلد وضعیت provisioning در سفارش، مقدار واقعی در جزئیات همان سفارش نمایش داده می‌شود.</p>
+        </section>
+    }
+
+</div>
+
+@functions {
+    private static string BooleanStatus(bool? value) => value switch
+    {
+        true => "تأیید شده",
+        false => "تأیید نشده",
+        _ => "در دسترس نیست"
+    };
+
+    private static string AccountStatus(bool? enabled) => enabled switch
+    {
+        true => "فعال",
+        false => "غیرفعال",
+        _ => "در دسترس نیست"
+    };
+
+    private static string DriveStateName(string state) => state switch
+    {
+        "Ready" => "آماده",
+        "Missing" => "پوشه ایجاد نشده",
+        "NotConfigured" => "پیکربندی نشده",
+        "Unreachable" => "در دسترس نیست",
+        _ => "نامشخص"
+    };
+
+    private Microsoft.AspNetCore.Html.IHtmlContent OrderTable(IReadOnlyList<AbrITPortal.Areas.Admin.Controllers.OrderAdminRow> orders)
+    {
+        var content = new Microsoft.AspNetCore.Html.HtmlContentBuilder();
+        content.AppendHtml("<div class=\"table-responsive\"><table class=\"table admin-table\"><thead><tr><th>شناسه / عنوان</th><th>مشتری (شناسه مالک)</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead><tbody>");
+        foreach (var order in orders)
+        {
+            content.AppendHtml("<tr><td><a href=\"/Admin/AbrIT/Orders/");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(Uri.EscapeDataString(order.Id)));
+            content.AppendHtml("\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(order.Title));
+            content.AppendHtml("</a><small class=\"d-block text-muted\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(order.CustomerName ?? "نام مشتری ثبت نشده"));
+            content.AppendHtml("</small><small class=\"d-block text-muted cell-mono\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(order.Id));
+            content.AppendHtml("</small></td><td class=\"cell-mono\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(order.OwnerId) ? "—" : order.OwnerId));
+            content.AppendHtml("</td><td><span class=\"status-badge\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(order.Status));
+            content.AppendHtml("</span></td><td dir=\"ltr\">");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(order.Created));
+            content.AppendHtml("</td><td><a class=\"btn btn-sm btn-outline-primary\" href=\"/Admin/AbrIT/Orders/");
+            content.AppendHtml(System.Net.WebUtility.HtmlEncode(Uri.EscapeDataString(order.Id)));
+            content.AppendHtml("\">جزئیات</a></td></tr>");
+        }
+        if (orders.Count == 0)
+        {
+            content.AppendHtml("<tr><td colspan=\"5\"><div class=\"portal-empty-state portal-empty-state--compact\"><h3 class=\"portal-empty-state__title\">سفارشی برای نمایش وجود ندارد</h3></div></td></tr>");
+        }
+        content.AppendHtml("</tbody></table></div>");
+        return content;
+    }
+
+    private Microsoft.AspNetCore.Html.IHtmlContent Pagination()
+    {
+        var pages = Math.Max(1, (int)Math.Ceiling(Model.TotalCount / (double)Model.PageSize));
+        if (pages <= 1)
+        {
+            return Microsoft.AspNetCore.Html.HtmlString.Empty;
+        }
+
+        var content = new Microsoft.AspNetCore.Html.HtmlContentBuilder();
+        content.AppendHtml("<nav class=\"abrit-admin-pagination\" aria-label=\"صفحه‌بندی\"><ul class=\"pagination\">");
+        for (var page = 1; page <= pages; page++)
+        {
+            var href = $"?page={page}&q={Uri.EscapeDataString(Model.Query ?? string.Empty)}";
+            content.AppendHtml($"<li class=\"page-item{(page == Model.PageNumber ? " active" : string.Empty)}\"><a class=\"page-link\" href=\"{href}\"{(page == Model.PageNumber ? " aria-current=\"page\"" : string.Empty)}>{page}</a></li>");
+        }
+        content.AppendHtml("</ul></nav>");
+        return content;
+    }
+}

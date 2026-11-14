@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AbrITPortal.SecurityTests/AbrITPortal.SecurityTests.csproj" />
+  <Project Path="AbrITAdminTheme/AbrITAdminTheme.csproj" />
+  <Project Path="AbrITPortal/AbrITPortal.csproj" />
+  <Project Path="AbrITPortalTheme/AbrITPortalTheme.csproj" />
+</Solution>

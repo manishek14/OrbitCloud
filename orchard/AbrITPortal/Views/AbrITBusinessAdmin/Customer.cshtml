@@ -1,0 +1,22 @@
+@model CommerceCustomer
+<div class="abrit-ops">
+    <a class="abrit-ops__back" href="/Admin/AbrIT/Customers">بازگشت به مشتریان</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مشتری</span><h1>@(Model.Name ?? Model.Email)</h1></header>
+    <section class="abrit-ops__stats">
+        <article class="abrit-ops__stat"><span>سفارش‌ها</span><strong>@Model.OrderCount</strong></article>
+        <article class="abrit-ops__stat"><span>مجموع پرداخت (تومان)</span><strong>@Model.PaidTotalToman.ToString("N0")</strong></article>
+        <article class="abrit-ops__stat"><span>حساب Drive</span><strong>@(Model.HasDrive ? "دارد" : "ندارد")</strong></article>
+        <article class="abrit-ops__stat"><span>اشتراک فعال</span><strong>@(Model.ActiveSubscription ?? "—")</strong></article>
+    </section>
+    <section class="abrit-ops__card">
+        <div class="abrit-ops__card-heading"><span class="abrit-ops__label">اطلاعات حساب</span><h2>جزئیات</h2></div>
+        <ul class="abrit-ops__status-list">
+            <li><span>ایمیل</span><strong dir="ltr">@Model.Email</strong></li>
+            <li><span>شماره همراه</span><strong dir="ltr">@(Model.Mobile ?? "—")</strong></li>
+            <li><span>شرکت</span><strong>@(Model.Company ?? "—")</strong></li>
+            <li><span>وضعیت</span><strong>@(Model.Status == "active" ? "فعال" : "غیرفعال")</strong></li>
+            <li><span>تاریخ عضویت</span><strong dir="ltr">@Model.CreatedAt</strong></li>
+            <li><span>آخرین ورود</span><strong dir="ltr">@(Model.LastLoginAt ?? "—")</strong></li>
+        </ul>
+    </section>
+</div>

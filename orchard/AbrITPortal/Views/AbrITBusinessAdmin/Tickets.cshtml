@@ -1,0 +1,31 @@
+@model IReadOnlyList<CommerceTicketRow>
+<div class="abrit-ops">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>تیکت‌های پشتیبانی</h1><p>تیکت‌های واقعی پنل مشتریان؛ پاسخ‌دهی از طریق اپلیکیشن پورتال انجام می‌شود.</p></header>
+    @if (Model.Count == 0)
+    {
+        <p class="abrit-ops__muted">تیکتی ثبت نشده است.</p>
+    }
+    else
+    {
+        <div class="abrit-admin-table-wrap">
+            <table class="abrit-admin-table">
+                <caption class="sr-only">فهرست تیکت‌ها</caption>
+                <thead><tr><th scope="col">شماره</th><th scope="col">موضوع</th><th scope="col">مشتری</th><th scope="col">اولویت</th><th scope="col">وضعیت</th><th scope="col">به‌روزرسانی</th></tr></thead>
+                <tbody>
+                @foreach (var t in Model)
+                {
+                    <tr>
+                        <td dir="ltr">@t.Number</td>
+                        <td>@t.Subject</td>
+                        <td>@(t.CustomerName ?? "—")</td>
+                        <td>@t.Priority</td>
+                        <td><span class="abrit-status-badge @(t.Status == "open" ? "is-pending" : "is-muted")">@t.Status</span></td>
+                        <td dir="ltr">@ViewFormats.CompactDate(t.UpdatedAt)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

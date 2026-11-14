@@ -1,0 +1,15 @@
+@model AbrITPortal.Payments.PaymentAttemptRecord
+<div class="abrit-ops" dir="rtl">
+    <a class="abrit-ops__back" href="/Admin/AbrIT/Payments">بازگشت به پرداخت‌ها</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">جزئیات تراکنش</span><h1 class="abrit-ops__mono">@Model.AttemptId</h1></header>
+    <section class="abrit-ops__section"><h2>اطلاعات ثبت‌شده</h2><dl class="abrit-ops__details">
+        <div><dt>سفارش</dt><dd class="abrit-ops__mono">@Model.OrderId</dd></div><div><dt>ارائه‌دهنده</dt><dd>@Model.ProviderCode</dd></div>
+        <div><dt>وضعیت تلاش</dt><dd>@Model.Status</dd></div><div><dt>وضعیت تراکنش</dt><dd>@Model.TransactionState</dd></div>
+        <div><dt>مبلغ اصلی</dt><dd>@Model.OriginalAmount @Model.OriginalCurrency</dd></div><div><dt>مبلغ درگاه</dt><dd>@Model.ProviderAmount @Model.ProviderCurrency</dd></div>
+        <div><dt>مرجع ارائه‌دهنده</dt><dd class="abrit-ops__mono">@Model.GatewayReference</dd></div><div><dt>دسته خطا</dt><dd>@Model.ErrorCategory</dd></div>
+        <div><dt>تلاش تطبیق</dt><dd>@Model.RetryCount</dd></div><div><dt>تطبیق بعدی</dt><dd dir="ltr">@Model.NextReconciliationUtc?.ToString("yyyy/MM/dd HH:mm")</dd></div>
+        <div><dt>تاریخ ایجاد</dt><dd dir="ltr">@Model.CreatedUtc.ToString("yyyy/MM/dd HH:mm")</dd></div><div><dt>آخرین به‌روزرسانی</dt><dd dir="ltr">@Model.UpdatedUtc.ToString("yyyy/MM/dd HH:mm")</dd></div>
+        <div><dt>تأیید</dt><dd dir="ltr">@Model.VerifiedUtc?.ToString("yyyy/MM/dd HH:mm")</dd></div><div><dt>تسویه</dt><dd dir="ltr">@Model.SettledUtc?.ToString("yyyy/MM/dd HH:mm")</dd></div>
+    </dl></section>
+    <p class="abrit-ops__footnote">Authority، شناسه درخواست درگاه و متن خام خطا در این نما نمایش داده نمی‌شوند.</p>
+</div>

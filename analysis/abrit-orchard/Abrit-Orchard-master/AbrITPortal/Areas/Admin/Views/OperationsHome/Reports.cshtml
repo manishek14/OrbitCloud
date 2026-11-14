@@ -1,0 +1,26 @@
+@model AbrITPortal.Areas.Admin.Controllers.AbrITOperationsOverview
+<div class="abrit-ops" dir="rtl">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">گزارش‌های عملیاتی</span><h1>گزارش‌ها</h1><p>گزارش‌های زیر از داده‌های واقعی tenant جاری محاسبه شده‌اند.</p></header>
+    <section class="abrit-ops__stats">
+        <article class="abrit-ops__stat"><span>حساب مشتری</span><strong>@Model.TotalCustomers</strong><small>حساب‌های فعلی؛ رشد زمانی در دسترس نیست</small></article>
+        <article class="abrit-ops__stat"><span>سفارش</span><strong>@Model.TotalOrders</strong><small>سفارش‌های منتشرشده</small></article>
+        <article class="abrit-ops__stat"><span>در انتظار</span><strong>@Model.PendingOrders</strong><small>بر اساس وضعیت ذخیره‌شده</small></article>
+        <article class="abrit-ops__stat"><span>تکمیل‌شده</span><strong>@Model.CompletedOrders</strong><small>بر اساس وضعیت ذخیره‌شده</small></article>
+    </section>
+    <div class="abrit-ops__detail-grid">
+        <section class="abrit-ops__section"><h2>وضعیت پرداخت‌ها</h2>
+            @if (Model.PaymentStatuses is null) { <p class="abrit-ops__unavailable">فروشگاه پرداخت در دسترس نیست.</p> }
+            else if (Model.PaymentStatuses.Count == 0) { <p class="abrit-ops__muted">در ۱۰۰ تلاش اخیر رکوردی وجود ندارد.</p> }
+            else { <ul class="abrit-ops__status-list">@foreach (var item in Model.PaymentStatuses) { <li><span>@item.Status</span><strong>@item.Count</strong></li> }</ul><p class="abrit-ops__footnote">صرفاً ۱۰۰ تلاش اخیر؛ جمع کل پرداخت/درآمد قابل گزارش نیست.</p> }
+        </section>
+        <section class="abrit-ops__section"><h2>وضعیت ارسال پیامک</h2>
+            @if (Model.SmsStatuses is null) { <p class="abrit-ops__unavailable">فروشگاه Outbox در دسترس نیست.</p> }
+            else if (Model.SmsStatuses.Count == 0) { <p class="abrit-ops__muted">در ۱۰۰ پیام اخیر رکوردی وجود ندارد.</p> }
+            else { <ul class="abrit-ops__status-list">@foreach (var item in Model.SmsStatuses) { <li><span>@item.Status</span><strong>@item.Count</strong></li> }</ul><p class="abrit-ops__footnote">صرفاً ۱۰۰ پیام اخیر؛ آمار تحویل تاریخی ذخیره نمی‌شود.</p> }
+        </section>
+        <section class="abrit-ops__section"><h2>رشد مشتریان و توزیع خدمات</h2><p class="abrit-ops__unavailable">تاریخ ثبت‌نام و موجودیت سرویس تخصیص‌یافته در منبع داده فعلی وجود ندارد.</p></section>
+        <section class="abrit-ops__section"><h2>عملیات ناموفق</h2><p class="abrit-ops__unavailable">تاریخچهٔ پایدار خطاهای background job یا راه‌اندازی سرویس موجود نیست.</p></section>
+    </div>
+    <div class="abrit-ops__notice" role="status">درآمد در این گزارش نمایش داده نمی‌شود؛ داده سفارش و پرداخت مرجع قابل تطبیق ندارد و جمع‌زدن آن‌ها قابل اتکا نیست.</div>
+</div>

@@ -1,0 +1,41 @@
+# Docker build context for the Next.js portal image.
+# Runtime state, secrets and unrelated trees are never sent to the builder.
+
+# VCS / CI
+.git
+.github
+
+# Dependencies & build output (rebuilt inside the image)
+node_modules
+.next
+
+# Runtime state / local artifacts
+db
+upload
+download
+tool-results
+tsconfig.tsbuildinfo
+*.log
+dev*.log
+orchard-runtime.log
+
+# Unrelated trees (the CMS has its own build context: ./orchard)
+orchard
+analysis
+skills
+agent-ctx
+examples
+mini-services
+docs
+tests
+
+# Environment & deployment files (secrets are injected at runtime)
+.env
+.env.*
+!.env.example
+docker-compose.yml
+Caddyfile
+
+# Docker files themselves
+Dockerfile
+.dockerignore

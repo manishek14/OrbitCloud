@@ -1,0 +1,89 @@
+﻿<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101A30">
+  <title>{% page_title Site.SiteName, position: "before", separator: " - " %}</title>
+  {% resources type: "Meta" %}
+  <link rel="preload" href="{{ 'AbrITPortalTheme/fonts/Vazirmatn-Regular.woff2' | asset_url }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ 'AbrITPortalTheme/fonts/Vazirmatn-Bold.woff2' | asset_url }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ 'AbrITPortalTheme/css/abrit-portal.css' | asset_url }}">
+  <link rel="stylesheet" href="{{ 'AbrITPortalTheme/css/abrit-customer-polish.css' | asset_url }}">
+  {% resources type: "HeadLink" %}{% resources type: "Stylesheet" %}{% resources type: "HeadScript" %}
+</head>
+<body>
+  <a class="skip-link" href="#main-content">پرش به محتوای اصلی</a>
+  <header class="portal-header">
+    <div class="portal-header__inner">
+      <a class="portal-brand" href="/services">
+        <span class="portal-brand__mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8.5 4.9v9.8L12 21.6l-8.5-4.9V6.9L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 7.2l4.2 2.4v4.8L12 16.8l-4.2-2.4V9.6L12 7.2z" fill="currentColor" opacity=".9"/></svg></span>
+        <span>AbrIT<span class="portal-brand__sub">پرتال مشتریان</span></span>
+      </a>
+      <input type="checkbox" id="portal-nav-toggle" class="portal-nav-toggle">
+      <label class="portal-nav-burger" for="portal-nav-toggle" aria-label="نمایش منو"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></label>
+      <nav class="portal-nav" aria-label="ناوبری اصلی">
+        <a class="portal-nav__link" href="/services">خدمات</a>
+        {% if User.Identity.IsAuthenticated %}
+        <a class="portal-nav__link" href="/dashboard">داشبورد</a>
+        <a class="portal-nav__link" href="/account">حساب کاربری</a>
+        <a class="portal-nav__link" href="/drive">AbrIT Drive</a>
+        <span class="portal-nav__spacer"></span>
+        <div class="portal-nav__auth">
+          <a class="portal-userchip" href="/account" title="حساب کاربری"><span class="portal-userchip__avatar" aria-hidden="true">{{ User.Identity.Name | slice: 0 }}</span><span>{{ User.Identity.Name }}</span></a>
+          <form class="portal-logout" method="post" action="/Users/LogOff">{% antiforgerytoken %}<button type="submit">خروج</button></form>
+        </div>
+        {% else %}
+        <span class="portal-nav__spacer"></span>
+        <div class="portal-nav__auth">
+          <a class="portal-button portal-button--secondary" href="/Login">ورود</a>
+          <a class="portal-button portal-button--primary" href="/customer/register">ثبت‌نام</a>
+        </div>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  <main class="portal-main" id="main-content"><div class="portal-container portal-page">{% render_body %}</div></main>
+  <footer class="portal-footer">
+    <div class="portal-footer__grid">
+      <div>
+        <div class="portal-footer__brand"><span class="portal-brand__mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l8.5 4.9v9.8L12 21.6l-8.5-4.9V6.9L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 7.2l4.2 2.4v4.8L12 16.8l-4.2-2.4V9.6L12 7.2z" fill="currentColor" opacity=".9"/></svg></span><span>AbrIT</span></div>
+        <p>پرتال مشتریان AbrIT برای مدیریت خدمات و سفارش‌های ابری شما.</p>
+      </div>
+      <div>
+        <h3 class="portal-footer__title">دسترسی سریع</h3>
+        <ul class="portal-footer__links">
+          {% if User.Identity.IsAuthenticated %}
+          <li><a href="/dashboard">داشبورد</a></li>
+          <li><a href="/services">سرویس‌ها</a></li>
+          <li><a href="/drive">AbrIT Drive</a></li>
+          <li><a href="/account">حساب کاربری</a></li>
+          {% else %}
+          <li><a href="/services">سرویس‌ها</a></li>
+          <li><a href="/Login">ورود</a></li>
+          <li><a href="/customer/register">ثبت‌نام</a></li>
+          {% endif %}
+        </ul>
+      </div>
+      <div>
+        <h3 class="portal-footer__title">راهنما</h3>
+        <ul class="portal-footer__links">
+          <li><a href="/services">فهرست سرویس‌های ابری</a></li>
+          <li><a href="/customer/recover">بازیابی گذرواژه</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="portal-footer__bottom">© AbrIT — تمامی حقوق محفوظ است.{% render_section "Footer", required: false %}</div>
+  </footer>
+  {% resources type: "FootScript" %}
+  <script>
+    document.querySelectorAll('.portal-nav__link').forEach(function (link) {
+      var href = link.getAttribute('href');
+      if (location.pathname === href || (href === '/services' && location.pathname.startsWith('/services/'))) {
+        link.classList.add('is-active');
+        link.setAttribute('aria-current', 'page');
+      }
+    });
+  </script>
+</body>
+</html>

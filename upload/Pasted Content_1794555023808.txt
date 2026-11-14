@@ -1,0 +1,1251 @@
+# AbrIT Orchard Core — Full Repository Audit, OTP Repair, UI Bug Fixes, and Nextcloud User Provisioning
+
+You are working on the uploaded `Abrit-Orchard-master` repository.
+
+This is a strict engineering task. The repository contains existing implementation defects, incomplete integrations, UI inconsistencies, and documentation that sometimes contradicts the actual source code.
+
+Your objective is to audit the repository thoroughly, fix confirmed defects, implement the new AbrIT Drive integration according to the latest requirements, and provide verifiable evidence for every completed change.
+
+Do not assume previous reports are correct. Inspect the actual source code.
+
+Do not merely make the build pass. The real customer workflows must work correctly.
+
+---
+
+# 1. Mandatory Source Documents
+
+Read the complete contents of the following repository documents before changing code:
+
+- `docs/BASELINE.md`
+- `docs/COMMERCIAL_RULES.md`
+- `docs/INTEGRATION_CONTRACTS.md`
+- `docs/INTEGRATION_TEST_REPORT.md`
+- `docs/PAYMENT_ARCHITECTURE.md`
+- `docs/PRICING_ENGINE.md`
+- `docs/SECURITY.md`
+- `docs/SMS_IR.md`
+- `docs/SMS_QUEUE.md`
+- `docs/BACKGROUND_JOBS.md`
+- `docs/PHASE5_AUDIT.md`
+- `docs/PHASE5_GAP_AUDIT.md`
+- `docs/PHASE6_DESIGN_SYSTEM.md`
+- `docs/PHASE6_UI_ACCEPTANCE.md`
+- `docs/PHASE6_UI_TEST_REPORT.md`
+- `docs/UI_REDESIGN.md`
+- Provider-specific payment documentation.
+
+Also read the supplied business documents:
+
+1. `AbrIT_Orchard_Core_Client_Portal.pdf`
+2. `Abrit_Packages_1405_Final (1).docx`
+3. The latest AbrIT Drive integration guide supplied with this task.
+
+The supplied customer-portal PDF and final commercial document are business requirements, not optional suggestions.
+
+The latest Drive guide is a specific extension to the original Drive requirement.
+
+If the repository contains a newer explicitly approved business decision, identify the exact source and explain the conflict. Never silently invent a new business rule.
+
+---
+
+# 2. Audit Before Editing
+
+Before changing any file, create a detailed audit report.
+
+For every issue, classify it as one of:
+
+- Confirmed functional bug.
+- Confirmed security vulnerability.
+- Data consistency or concurrency issue.
+- Incorrect dependency injection/configuration.
+- UI/UX defect.
+- Accessibility defect.
+- Incomplete business requirement.
+- Documentation inconsistency.
+- External integration blocker.
+- Unverified concern.
+
+For each finding include:
+
+- Exact file path.
+- Method or component.
+- Relevant source lines.
+- Root cause.
+- Actual user-visible or operational consequence.
+- Severity: Critical, High, Medium, or Low.
+- Required correction.
+- Regression test.
+
+Do not patch speculative findings without verifying them.
+
+Do not count an incomplete business feature as a code bug, but do not ignore it.
+
+---
+
+# 3. Critical OTP and SMS Repairs
+
+This is the highest-priority part of the task.
+
+Inspect the complete flow:
+
+- `Mobile/MobileIdentityService.cs`
+- `Mobile/MobileIdentityController.cs`
+- `Mobile/SmsProviders.cs`
+- `Notifications/LegacySmsBridge.cs`
+- `Notifications/SmsProvidersV2.cs`
+- `Notifications/SmsContracts.cs`
+- `Notifications/SmsOutbox.cs`
+- `Notifications/PostgresSmsOutboxStore.cs`
+- `BackgroundJobs/SmsOutboxProcessor.cs`
+- `BackgroundJobs/AbrITBackgroundTasks.cs`
+- `Program.cs`
+- All relevant configuration and options classes.
+
+## 3.1 Fix the Mock provider selection defect
+
+The current bridge selects the mock provider before any other provider:
+
+`providers.FirstOrDefault(p => p.IsEnabled && p.Code == "mock")`
+
+The mock provider reports itself enabled unconditionally.
+
+This can cause OTP requests to report success without sending real SMS.
+
+Fix provider selection and environment behavior.
+
+Requirements:
+
+- Development may use an explicitly configured mock.
+- Production must never silently use a mock.
+- Mock behavior must be explicitly selected by environment/configuration.
+- An unavailable real provider must return a clear, safe failure.
+- A successful mock response must never be confused with a real delivery.
+- No provider should be considered production-ready without verified configuration and contract.
+
+Add tests proving that a Production configuration cannot select the mock provider.
+
+## 3.2 Remove the hardcoded OTP placeholder
+
+Inspect `SmsIrProvider`.
+
+The current implementation can use a hardcoded OTP value of `123456` when the request has no parameters.
+
+Remove this behavior completely.
+
+Never send:
+
+- A hardcoded OTP.
+- A placeholder OTP.
+- An empty OTP parameter.
+- A previous user's OTP.
+- An OTP recovered from an unrelated challenge.
+
+If the real OTP cannot be safely recovered, fail closed.
+
+## 3.3 Replace Base64 OTP storage with protected payloads
+
+Inspect `LegacySmsBridge`.
+
+Base64 is not encryption.
+
+Sensitive OTP payloads must be protected using ASP.NET Core Data Protection or an equally appropriate cryptographic mechanism.
+
+Requirements:
+
+- Do not store OTP plaintext.
+- Do not store Base64 as if it were encryption.
+- Use a stable and correctly scoped Data Protection purpose.
+- Ensure Data Protection keys persist across application restarts and instances.
+- Protect payloads only for the minimum required lifetime.
+- Purge sensitive payloads after terminal processing.
+- Never log OTP values.
+- Never return OTP values from production endpoints.
+
+## 3.4 Fix the Outbox processing lifecycle
+
+The current implementation must be reviewed end-to-end.
+
+The correct order is:
+
+1. Generate OTP.
+2. Create a protected dispatch payload.
+3. Persist the outbox record.
+4. Confirm persistence.
+5. Claim the message atomically.
+6. Recover and unprotect the payload.
+7. Validate expiry and purpose.
+8. Construct the provider request using the actual OTP.
+9. Dispatch through the configured provider.
+10. Persist the provider outcome.
+11. Purge the protected payload when appropriate.
+
+The current worker reconstructs a request with null parameters and does not recover the protected OTP.
+
+Fix this completely.
+
+Do not implement a workaround that simply stores the OTP in plaintext in `ParametersJson`.
+
+## 3.5 Make SMS dispatch durable
+
+The current `Program.cs` registers:
+
+- `InMemorySmsOutboxStore`
+- `InMemoryPaymentStore`
+
+These are not suitable as the active Production stores.
+
+Wire the correct durable PostgreSQL implementation for Production, with explicit environment-aware registrations.
+
+Requirements:
+
+- Atomic message claiming.
+- Unique tenant/idempotency constraints.
+- Lease recovery.
+- Expiry handling.
+- Retry with bounded exponential backoff and jitter.
+- Correct handling of ambiguous provider outcomes.
+- Dead-letter handling.
+- No blind retry after an ambiguous successful submission.
+- Correct provider selection.
+- Multi-instance safety.
+
+Use the in-memory implementation only in isolated Development/Test configurations.
+
+Do not claim exactly-once delivery to a third-party provider.
+
+## 3.6 Fix configuration binding
+
+Inspect `Infrastructure/Startup.cs` and `Program.cs`.
+
+Calling `AddOptions<T>()` alone does not bind configuration values.
+
+Explicitly bind and validate:
+
+- `NotificationOptions`
+- `SmsIrOptions`
+- `SmsQueueOptions`
+- `PaymentProviderOptions`
+- Any other required options.
+
+Use validation at startup for required Production configuration.
+
+Never commit API keys or provider credentials.
+
+Add tests proving that environment variables and configuration sections are correctly loaded.
+
+## 3.7 Verify SMS.ir integration
+
+The current provider implementation must not be assumed correct merely because an adapter exists.
+
+Verify the actual official API contract and the configured merchant account:
+
+- Authentication header.
+- Endpoint.
+- Template ID.
+- Parameter names.
+- Request schema.
+- Response schema.
+- Error mapping.
+- Timeout behavior.
+- Provider message identifier.
+- Any available delivery status API.
+
+Do not invent API details.
+
+If the official contract or account credentials are unavailable, keep live delivery disabled and report the exact missing requirements.
+
+Never send real SMS messages during automated tests.
+
+## 3.8 Fix OTP challenge persistence
+
+The current OTP implementation uses `IMemoryCache`.
+
+There is no durable PostgreSQL OTP challenge store in the current repository.
+
+Implement a persistent challenge store suitable for Production and multiple application instances.
+
+Requirements:
+
+- Challenge ID generated using a cryptographically secure random generator.
+- OTP generated using a cryptographically secure random generator.
+- Expiration enforced at the database and application boundaries.
+- Single-use challenge consumption.
+- Atomic attempt counting.
+- Maximum attempt enforcement.
+- Purpose binding.
+- User/account binding.
+- Mobile-number binding.
+- Replay protection.
+- Multi-instance consistency.
+- Restart recovery.
+- Expired challenge cleanup.
+- Safe retention and deletion.
+
+Use a keyed hash or appropriately protected representation for low-entropy OTP values. Do not rely on a plain salted SHA-256 hash as the only protection against offline guessing after a database compromise.
+
+Add versioned PostgreSQL migrations.
+
+Do not execute migrations against a real production database.
+
+## 3.9 Fix OTP rate limiting
+
+Current rate limits are process-local and registration limits are partly keyed by username rather than mobile number.
+
+Implement shared, atomic rate limiting for:
+
+- Client IP.
+- Normalized Iranian mobile number.
+- Account ID or normalized username.
+- OTP purpose.
+- Resend operation.
+- Verification attempts.
+
+Requirements:
+
+- Use a shared persistent/distributed mechanism suitable for multiple instances.
+- Apply cooldowns.
+- Prevent repeated SMS abuse by changing usernames.
+- Ensure unknown accounts and known accounts have indistinguishable public recovery responses.
+- Do not trust arbitrary forwarded IP headers.
+- Correctly configure trusted reverse proxies.
+- Do not make every user appear to have the same IP behind a proxy.
+
+Add concurrency and multi-instance tests.
+
+## 3.10 Fix mobile-number uniqueness
+
+The development-only index creation must not be the only protection.
+
+Implement a proper production migration for verified mobile uniqueness.
+
+Requirements:
+
+- Database-enforced uniqueness.
+- Correct normalization.
+- Concurrency-safe registration.
+- Concurrency-safe mobile verification.
+- Safe handling of existing duplicate records.
+- No silent deletion or modification of customer accounts.
+
+Do not rely only on application-level scans.
+
+## 3.11 Fix OTP localization and UX
+
+Support Persian, Arabic, and ASCII digits for:
+
+- OTP input.
+- Iranian mobile input.
+- Relevant numeric form fields.
+
+Normalize the values on the server.
+
+Implement and test the following UI states:
+
+- OTP sent.
+- OTP sending failed.
+- OTP expired.
+- Invalid OTP.
+- Too many attempts.
+- Resend cooldown.
+- Resend success.
+- Resend failure.
+- Registration completed.
+- Mobile verification completed.
+- Recovery completed.
+
+The UI must not falsely claim that a message was sent when dispatch failed.
+
+Do not reveal account existence.
+
+---
+
+# 4. Password Recovery Repairs
+
+Inspect the complete password recovery flow.
+
+The current implementation stores reset grants and recovery versions in `IMemoryCache`.
+
+Replace this with a durable, atomic implementation.
+
+Requirements:
+
+- Durable recovery grants.
+- One-time use.
+- Short expiration.
+- User binding.
+- Purpose binding.
+- Token hashing/protection.
+- Replay protection.
+- Concurrency safety.
+- Multi-instance compatibility.
+- Restart recovery.
+
+Do not consume a grant irreversibly before validating the request and safely coordinating the password-reset operation.
+
+Handle invalid passwords and transient Identity failures without leaving the user in an unrecoverable state.
+
+Add tests for:
+
+- Expired grants.
+- Invalid tokens.
+- Replayed grants.
+- Concurrent reset requests.
+- Password-policy failures.
+- Restart during recovery.
+- User deletion or account changes.
+- Successful recovery.
+
+Never expose account existence in public recovery responses.
+
+---
+
+# 5. AbrIT Drive — Replace Folder Provisioning With Nextcloud User Provisioning
+
+The current implementation in:
+
+- `Drive/AbrITDriveOptions.cs`
+- `Drive/DriveController.cs`
+- `Drive/DriveStatusService.cs`
+
+uses one technical Nextcloud account and one WebDAV folder per Orchard user.
+
+This does not satisfy the new Drive integration guide.
+
+A folder under one shared technical account is not equivalent to a dedicated Nextcloud user with an independent quota.
+
+Implement the Nextcloud User Provisioning API.
+
+## 5.1 Official API contract
+
+Use the official Nextcloud documentation:
+
+`https://docs.nextcloud.com/server/stable/admin_manual/configuration_user/user_provisioning_api.html`
+
+Relevant base path:
+
+`/ocs/v1.php/cloud`
+
+Required request header:
+
+`OCS-APIRequest: true`
+
+Use an appropriate `Accept: application/json` header and correctly encode POST/PUT request bodies as `application/x-www-form-urlencoded` where required by the official API.
+
+Do not assume WebDAV is a substitute for the Provisioning API.
+
+## 5.2 Required operations
+
+Implement a dedicated server-side Nextcloud client abstraction supporting:
+
+### Create user
+
+`POST /ocs/v1.php/cloud/users`
+
+Support:
+
+- `userid`
+- `password`
+- `displayName`
+- `email`
+- `quota`
+
+### Retrieve user
+
+`GET /ocs/v1.php/cloud/users/{userid}`
+
+Retrieve:
+
+- User ID.
+- Enabled state.
+- Email.
+- Display name.
+- Quota.
+- Available quota data where supported.
+- Used storage.
+- Other necessary account status fields.
+
+### Update quota
+
+`PUT /ocs/v1.php/cloud/users/{userid}`
+
+Use the documented `key=quota` and `value=...` fields.
+
+### Enable user
+
+`PUT /ocs/v1.php/cloud/users/{userid}/enable`
+
+### Disable user
+
+`PUT /ocs/v1.php/cloud/users/{userid}/disable`
+
+Handle all OCS meta status codes, not just HTTP status codes.
+
+In particular, handle duplicate usernames (OCS status code 102) safely.
+
+Do not treat an HTTP 200 response as proof that an OCS operation succeeded. Parse and validate the OCS response metadata.
+
+## 5.3 Dedicated account identity and persistence
+
+Create a durable mapping between the Orchard customer and the Nextcloud user.
+
+Persist at least:
+
+- Orchard user ID.
+- Nextcloud user ID.
+- Provisioning status.
+- Assigned quota.
+- Last known used storage where appropriate.
+- Last successful synchronization.
+- Last error category.
+- Retry/operation metadata.
+- Creation timestamp.
+- Update timestamp.
+
+Add database constraints ensuring one customer cannot accidentally create multiple unrelated Nextcloud accounts.
+
+Use versioned migrations.
+
+Never store Nextcloud passwords in plaintext.
+
+Do not expose administrative Nextcloud credentials to customer-facing code.
+
+## 5.4 Credential design
+
+The Drive guide requires a username and password for the Nextcloud account.
+
+Design a safe credential flow.
+
+Requirements:
+
+- Do not automatically reuse the Orchard portal password without explicit product approval.
+- Do not store the Nextcloud password in plaintext.
+- Never log passwords.
+- Never expose the administrator's Nextcloud credentials.
+- Never return an administrator token or Basic Authorization header.
+- Provide a safe customer credential setup or initial credential delivery mechanism.
+- Do not display the password again after its permitted one-time display.
+- If password recovery or password changes are required, use a dedicated secure flow.
+
+If the business requirement does not specify whether the customer chooses the Drive password or receives an initial generated password, identify this as a product decision. Do not silently choose an unsafe implementation.
+
+## 5.5 Provisioning idempotency
+
+Repeated requests must not create duplicate Nextcloud users.
+
+Implement an idempotent workflow:
+
+1. Load the Orchard customer.
+2. Load the persisted Nextcloud mapping.
+3. Verify that the requested account belongs to that customer.
+4. If an account is already mapped, retrieve it from Nextcloud.
+5. Reconcile its quota and enabled state when appropriate.
+6. If no mapping exists, create the account.
+7. Persist the mapping only after validating the external response.
+8. If a duplicate username is reported without a trusted mapping, do not adopt the existing account automatically.
+9. Handle network timeouts and ambiguous responses through reconciliation.
+10. Make repeated provisioning requests safe.
+
+Do not create duplicate accounts when the external request succeeds but the local database update fails.
+
+## 5.6 Quota management
+
+The initial acceptance test uses 100 MB.
+
+Implement a proper quota model.
+
+Requirements:
+
+- Store the quota as an explicit value.
+- Map plan quota values to valid Nextcloud quota strings.
+- Support quota changes after plan changes.
+- Verify the quota after updates.
+- Do not report success until the external account reflects the expected quota.
+- Correctly handle unlimited quota and invalid quota values.
+- Never infer a customer's personal quota from the technical account's shared storage.
+
+For the initial test, the customer must receive a dedicated Nextcloud account with a verified 100 MB quota.
+
+## 5.7 Account status and storage usage
+
+Retrieve the real Nextcloud account status.
+
+The customer portal must show:
+
+- Account state.
+- Drive URL.
+- Nextcloud username or account identifier.
+- Assigned quota.
+- Used storage.
+- Available storage where supported.
+- Last synchronization status.
+- Safe error information when unavailable.
+
+Do not fabricate Ready status.
+
+A malformed OCS response or missing quota data must not be interpreted as successful provisioning.
+
+## 5.8 Drive access link
+
+The Drive service URL is:
+
+`https://drive.abrit.cloud`
+
+Display a real external link after the account is ready.
+
+SSO is explicitly not required in this phase.
+
+Do not implement automatic login or credential forwarding as a substitute for SSO.
+
+## 5.9 Provisioning trigger — Business rule reconciliation
+
+The original portal PDF describes Drive creation after confirmed payment.
+
+The newer Drive guide allows account creation after registration or Drive service activation.
+
+These requirements must be reconciled.
+
+Model provisioning eligibility explicitly.
+
+Do not automatically grant a paid package entitlement to every registered user.
+
+If the newest approved decision requires Drive creation immediately after registration, implement that behavior explicitly and document it.
+
+Otherwise require an eligible Drive activation or paid entitlement.
+
+Do not silently change the original purchase/entitlement rules.
+
+## 5.10 Legacy implementation investigation
+
+The new guide asks to inspect the previous implementation in `abrit-website` or the old local website project.
+
+If the repository is accessible through an already authorized GitHub connection, inspect it.
+
+If it is not accessible, report that limitation.
+
+Do not invent the previous implementation or assume that its code matches the current WebDAV approach.
+
+Reuse only verified and secure components.
+
+## 5.11 Drive UI
+
+Replace the current folder activation UI with the new account-provisioning UI.
+
+Required states:
+
+- Not configured.
+- Not activated.
+- Activation form.
+- Creating account.
+- Ready.
+- Existing account.
+- Username conflict.
+- Quota update pending.
+- Quota updated.
+- Temporarily unreachable.
+- Permanent provider error.
+- Retry available.
+- Disabled account.
+
+Show the real Drive link and customer account information only when appropriate.
+
+Do not display secrets.
+
+---
+
+# 6. Commercial Packages and Pricing
+
+Use `Abrit_Packages_1405_Final (1).docx` as the final commercial reference unless a newer approved decision is found.
+
+The final document defines:
+
+| Package | Monthly Price | Users | Endpoints | Extra User | Extra Endpoint | SLA |
+|---|---:|---:|---:|---:|---:|---|
+| Essential | 12,950,000 | 5 | 6 | 1,590,000 | 790,000 | 8 business hours |
+| Standard | 19,500,000 | 10 | 12 | 1,990,000 | 990,000 | 4 business hours |
+| Professional | 32,900,000 | 15 | 20 | 2,690,000 | 1,290,000 | 2 business hours |
+| Business | 52,900,000 | 25 | 35 | 3,790,000 | 1,790,000 | 1 business hour |
+| Enterprise | 79,900,000 | 40 | 60 | 4,990,000 | 2,490,000 | P1: 30 minutes |
+
+All monetary values are in Toman.
+
+Contract durations:
+
+- 3 months: 3% discount.
+- 6 months: 5% discount.
+- 12 months: 8% discount.
+
+Onboarding:
+
+- 3 months: 50% of one base monthly package price.
+- 6 months: 25% of one base monthly package price.
+- 12 months: free standard onboarding.
+
+The final model must represent relevant capacity and service information:
+
+- Users.
+- Endpoints.
+- Servers/VMs.
+- Sites/Branches.
+- Managed network devices.
+- Cloud storage.
+- Included services.
+- Additional user fees.
+- Additional endpoint fees.
+- SLA.
+- Contract policy.
+- Onboarding policy.
+- Package-specific add-ons.
+
+Do not invent prices for services that the document leaves as separately quoted or custom.
+
+Do not allow a one-month contract unless a newer approved business decision explicitly permits it.
+
+The current code contains mismatched prices, user counts, SLA values, missing additional-user fees, missing endpoint capacity, and no 12-month contract.
+
+Fix all of these consistently.
+
+The same authoritative commercial data must be used by:
+
+- Commercial defaults.
+- Admin management.
+- Pricing engine.
+- Pricing API.
+- Customer catalog.
+- Comparison table.
+- Contract selector.
+- Quote breakdown.
+- Order snapshot.
+- Drive quota mapping.
+
+Do not duplicate commercial values in JavaScript.
+
+## 6.1 Pricing validation
+
+Test:
+
+- Every package.
+- Every contract duration.
+- Additional users.
+- Additional endpoints.
+- Onboarding.
+- Discount calculations.
+- Invalid package.
+- Invalid capacity.
+- Rounding.
+- Toman/Rial conversion.
+- Snapshot immutability.
+
+Keep quote completeness separate from checkout authorization.
+
+Real checkout must remain disabled until the secure order/payment lifecycle is complete.
+
+---
+
+# 7. Payment and Persistence
+
+Inspect:
+
+- `PaymentOrchestrator.cs`
+- `PostgresPaymentStore.cs`
+- `PaymentStore.cs`
+- `PaymentVerificationService`
+- `PaymentReconciliationService`
+- `PaymentCallbackController.cs`
+- `PaymentOptions.cs`
+- `Program.cs`
+
+Fix:
+
+- InMemory Production store registration.
+- Missing or incomplete PostgreSQL wiring.
+- Configuration binding.
+- Schema/migration management.
+- Atomic idempotency.
+- Duplicate callback handling.
+- Concurrent payment attempts.
+- Order ownership validation.
+- Amount/currency validation.
+- Payment state transitions.
+- Reconciliation.
+- Audit records.
+
+Do not enable real checkout until the order lifecycle, payment verification, customer authorization, and provisioning entitlement checks are complete.
+
+Do not contact real payment providers during tests.
+
+Do not execute migrations against production.
+
+---
+
+# 8. UI and UX — Full Route-by-Route Review
+
+The UI is part of the deliverable. Do not limit the task to backend repairs.
+
+Inspect all customer-facing and admin-facing routes.
+
+At minimum:
+
+- `/`
+- `/services`
+- `/services/{id}`
+- `/Login`
+- `/customer/register`
+- `/customer/register/verify`
+- `/customer/mobile`
+- `/customer/mobile/verify`
+- `/customer/recover`
+- `/customer/recover/verify`
+- `/customer/recover/reset`
+- `/dashboard`
+- `/account`
+- `/drive`
+- All payment/order routes that exist.
+- All custom admin routes.
+- Native Orchard login, recovery, registration, and account pages.
+
+## 8.1 Login and authentication UI
+
+Verify that the real login page uses the AbrIT Persian RTL theme.
+
+The existence of `Layout-Login.liquid` is not proof that Orchard is using it.
+
+Verify the actual `UseSiteTheme` settings in the target tenant.
+
+Fix the English default Orchard login screen if it is still active.
+
+Preserve native Orchard authentication behavior, antiforgery, return URLs, and security checks.
+
+## 8.2 Responsive layout
+
+Test at:
+
+- 360px.
+- 390px.
+- 768px.
+- 1024px.
+- 1440px.
+- 1920px.
+
+Review:
+
+- Horizontal overflow.
+- Clipped buttons.
+- Card widths.
+- Table scrolling.
+- Sidebar behavior.
+- Mobile navigation.
+- Touch targets.
+- Form spacing.
+- Typography.
+- Persian/English mixed text.
+- Number and currency alignment.
+- Long usernames and emails.
+- Error messages.
+- Empty states.
+- Loading states.
+
+## 8.3 Accessibility
+
+Review:
+
+- Semantic HTML.
+- Heading hierarchy.
+- Keyboard navigation.
+- Focus visibility.
+- Form labels.
+- Error association.
+- ARIA state.
+- Contrast.
+- Screen reader announcements.
+- Slider keyboard behavior.
+- Nested interactive elements.
+
+Fix the current plan-card structure where an element with `role="button"` contains another button.
+
+## 8.4 Pricing JavaScript
+
+Review the complete `PricingScript()`.
+
+Fix:
+
+- One-month selector/backend mismatch.
+- Missing 12-month support.
+- Invalid numeric input handling.
+- Stale price display.
+- Race conditions in concurrent preview requests.
+- Error presentation.
+- Loading states.
+- XSS risk from unescaped API values inserted using `innerHTML`.
+- Accessibility of the slider and contract selector.
+
+Prefer safe DOM construction and `textContent` over direct HTML insertion.
+
+## 8.5 Dashboard semantics
+
+Do not calculate actual active services solely from order status.
+
+Keep distinct models for:
+
+- Order status.
+- Payment status.
+- Provisioning status.
+- Service status.
+- Renewal status.
+
+Do not show pending or completed orders as if they were active services.
+
+Do not fabricate service activation data.
+
+## 8.6 UI visual evidence
+
+The repository contains older screenshots and contradictory UI reports.
+
+Do not treat Phase 5 screenshots as proof of Phase 6 acceptance.
+
+Capture fresh screenshots from the actual current implementation.
+
+Capture:
+
+- Anonymous pages.
+- Authenticated customer pages.
+- OTP states.
+- Recovery states.
+- Drive provisioning states.
+- Admin pages.
+- Empty states.
+- Error states.
+- Mobile states.
+
+Do not claim visual verification unless the browser actually rendered the page and the screenshots were inspected.
+
+---
+
+# 9. Security Review
+
+Review the full application for:
+
+- IDOR.
+- Broken object-level authorization.
+- Missing ownership checks.
+- CSRF.
+- Open redirects.
+- Stored XSS.
+- Reflected XSS.
+- HTML injection.
+- Mass assignment.
+- Unsafe external URL construction.
+- SSRF through configuration.
+- Credential leakage.
+- Sensitive logging.
+- OTP enumeration.
+- OTP replay.
+- Rate-limit bypass.
+- Weak session behavior.
+- Incorrect tenant isolation.
+- Missing database constraints.
+- Concurrency races.
+- Unsafe background processing.
+
+Preserve existing Orchard authorization and antiforgery protections.
+
+Do not weaken security to make a workflow pass.
+
+Do not trust unvalidated customer-provided Nextcloud usernames, IDs, or URLs.
+
+---
+
+# 10. Documentation Reconciliation
+
+Correct the documentation so it matches the real implementation.
+
+In particular, reconcile:
+
+- `SMS_IR.md` versus the active `LegacySmsBridge` registration.
+- `SMS_QUEUE.md` versus actual DI registrations.
+- `INTEGRATION_TEST_REPORT.md` versus tests that were truly executed.
+- `PHASE6_UI_TEST_REPORT.md` versus available screenshot evidence.
+- `PHASE6_UI_ACCEPTANCE.md` versus the actual rendered UI.
+- `PRICING_ENGINE.md` versus supported contract durations.
+- Old WebDAV Drive documentation versus the new Nextcloud User Provisioning API implementation.
+
+Do not delete historical audit information merely to hide previous failures.
+
+Clearly label historical results and current verification status.
+
+Add a new Drive integration document explaining:
+
+- API endpoints.
+- Required headers.
+- Configuration.
+- Credential handling.
+- Quota mapping.
+- Provisioning lifecycle.
+- Idempotency.
+- Error handling.
+- Database schema.
+- Test procedure.
+- Rollback/reconciliation behavior.
+
+---
+
+# 11. Required Automated Tests
+
+Add or improve tests in the following areas.
+
+## OTP unit tests
+
+- Valid OTP.
+- Invalid OTP.
+- Expired OTP.
+- Single-use behavior.
+- Attempt limits.
+- Purpose mismatch.
+- User mismatch.
+- Persian digits.
+- Arabic digits.
+- Rate limiting.
+- Resend cooldown.
+- Duplicate mobile.
+- Recovery token.
+- Invalid password reset.
+- Provider failure.
+
+## SMS provider tests
+
+- Mock selected only in allowed environments.
+- Real provider never silently replaced by Mock.
+- Correct OTP parameter.
+- No hardcoded placeholder.
+- Protected payload recovery.
+- Durable outbox-first behavior.
+- Retry.
+- Expiry.
+- Ambiguous submission.
+- Dead-letter behavior.
+- Provider errors.
+- Configuration validation.
+
+## PostgreSQL integration tests
+
+Use a disposable PostgreSQL database, preferably Testcontainers.
+
+Test:
+
+- OTP persistence.
+- OTP atomic consumption.
+- Rate limits.
+- Mobile uniqueness.
+- Recovery grants.
+- SMS Outbox.
+- Payment attempts.
+- Idempotency.
+- Provisioning records.
+- Concurrent requests.
+- Restart recovery.
+
+Do not substitute InMemory stores for PostgreSQL integration tests.
+
+## Nextcloud integration tests
+
+Use a dedicated isolated Nextcloud test instance if available, or a faithful OCS API test server.
+
+Test:
+
+- Create user.
+- Duplicate username.
+- Get user.
+- Assign 100 MB quota.
+- Read quota.
+- Update quota.
+- Enable user.
+- Disable user.
+- Invalid credentials.
+- Invalid OCS response.
+- Network timeout.
+- Ambiguous create response.
+- Retry.
+- Duplicate provisioning.
+- Mapping persistence.
+- Customer ownership.
+- No credential leakage.
+
+Never create accounts on the real customer Nextcloud instance during automated tests.
+
+## Browser E2E tests
+
+Use Playwright or an equivalent browser automation framework.
+
+Test the actual customer experience at the required viewport sizes.
+
+Verify that no JavaScript errors occur and all interactive controls work.
+
+---
+
+# 12. Environment and Configuration Safety
+
+Inspect all configuration files.
+
+Validate JSON strictly.
+
+Fix the trailing comma in `AbrITPortal/appsettings.json` and add automated JSON validation.
+
+Bind all options correctly.
+
+Add validation for:
+
+- PostgreSQL.
+- Nextcloud URL.
+- Nextcloud administrator account.
+- Nextcloud app password.
+- SMS provider.
+- Payment provider.
+- Data Protection.
+- Trusted proxies.
+- Production security settings.
+
+Never commit credentials.
+
+Update `.env.example` with placeholders only.
+
+Never execute migrations against production.
+
+Never send real SMS.
+
+Never process real payments.
+
+Never create real customer Nextcloud users during automated tests.
+
+---
+
+# 13. Build and Verification
+
+After fixing the issues:
+
+1. Restore dependencies.
+2. Build the complete solution.
+3. Run all security tests.
+4. Run unit tests.
+5. Run PostgreSQL integration tests.
+6. Run Nextcloud API integration tests.
+7. Run browser E2E tests.
+8. Validate all JSON configuration.
+9. Inspect compiler warnings.
+10. Inspect the final Git diff.
+11. Check for secrets.
+12. Confirm that existing user changes were preserved.
+
+If the .NET SDK or external infrastructure is unavailable, state exactly what could not be executed.
+
+Never claim a test passed if it was not run.
+
+Never convert a source inspection into a runtime test claim.
+
+---
+
+# 14. Strict Change Rules
+
+- Work on a separate branch.
+- Do not commit.
+- Do not push.
+- Do not overwrite existing user changes.
+- Do not reset the repository.
+- Do not delete unrelated files.
+- Do not modify production databases.
+- Do not enable live payment processing.
+- Do not send real SMS.
+- Do not create real customer accounts on production Nextcloud.
+- Do not expose secrets.
+- Do not weaken authorization.
+- Do not invent commercial values.
+- Do not claim incomplete features are complete.
+- Keep the implementation compatible with Orchard Core 3.0.1 and .NET 10 unless a verified compatibility issue requires otherwise.
+
+Make changes in small, reviewable groups.
+
+---
+
+# 15. Final Deliverables
+
+Provide the following final report.
+
+## A. Confirmed Bug Inventory
+
+A complete table with:
+
+- Bug ID.
+- Severity.
+- File.
+- Method/component.
+- Root cause.
+- Fix.
+- Test evidence.
+
+## B. Fixed Issues
+
+List all confirmed bugs actually fixed.
+
+## C. Remaining Issues
+
+List every issue that remains unresolved and explain why.
+
+## D. Business Requirements Traceability
+
+Map every original PDF requirement, final commercial package requirement, and new Drive guide requirement to:
+
+- Implemented and tested.
+- Implemented but not fully verified.
+- Partially implemented.
+- Not implemented.
+- Blocked by external dependency.
+- Blocked by product-owner decision.
+
+## E. OTP and SMS Verification
+
+Provide proof that:
+
+- The correct OTP is generated.
+- The actual OTP is protected.
+- The actual OTP reaches the configured provider.
+- Mock is not used in Production.
+- OTP cannot be replayed.
+- Expiry and attempts work.
+- Multiple instances work.
+- Restart recovery works.
+
+Do not expose OTP values in the report.
+
+## F. Nextcloud Verification
+
+Provide proof that:
+
+- A dedicated Nextcloud user was created on an isolated test instance.
+- The user can authenticate independently.
+- The 100 MB quota was assigned and verified.
+- Quota changes work.
+- Duplicate provisioning does not create duplicate accounts.
+- User status can be retrieved and changed.
+- Credentials are not leaked.
+
+## G. UI Verification
+
+Provide screenshots and test results for all required pages and viewport sizes.
+
+## H. Test Results
+
+List exact commands and actual outputs.
+
+## I. Deployment and Migration Instructions
+
+Provide safe deployment steps, configuration requirements, migration order, and rollback instructions.
+
+## J. Production Readiness Decision
+
+Give a clear verdict:
+
+- Not ready.
+- Ready for isolated staging.
+- Ready for controlled production deployment.
+
+Do not declare Production Ready unless the actual workflows have been implemented and tested.
+
+The final objective is a correct, secure, maintainable AbrIT customer portal with a working OTP lifecycle, consistent commercial packages, a real Nextcloud user provisioning integration, and a professionally verified customer and admin UI.

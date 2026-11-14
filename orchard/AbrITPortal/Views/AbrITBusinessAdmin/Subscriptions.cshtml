@@ -1,0 +1,33 @@
+@model IReadOnlyList<CommerceSubscriptionRow>
+<div class="abrit-ops">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>اشتراک‌ها</h1><p>پیکربندی کامل هر اشتراک (پکیج، مدت، کاربر و Endpoint) از اسنپ‌شات سفارش ثبت‌شده است.</p></header>
+    @if (Model.Count == 0)
+    {
+        <p class="abrit-ops__muted">اشتراکی ثبت نشده است.</p>
+    }
+    else
+    {
+        <div class="abrit-admin-table-wrap">
+            <table class="abrit-admin-table">
+                <caption class="sr-only">فهرست اشتراک‌ها</caption>
+                <thead><tr><th scope="col">پکیج</th><th scope="col">مدت</th><th scope="col">کاربر</th><th scope="col">Endpoint</th><th scope="col">مبلغ کل (تومان)</th><th scope="col">شروع</th><th scope="col">پایان</th><th scope="col">وضعیت</th></tr></thead>
+                <tbody>
+                @foreach (var s in Model)
+                {
+                    <tr>
+                        <td><strong>@s.PackageNameFa</strong></td>
+                        <td>@s.Months ماه</td>
+                        <td>@s.Users</td>
+                        <td>@s.Endpoints</td>
+                        <td>@s.PriceTotalToman.ToString("N0")</td>
+                        <td dir="ltr">@ViewFormats.CompactDate(s.StartsAt)</td>
+                        <td dir="ltr">@ViewFormats.CompactDate(s.ExpiresAt)</td>
+                        <td><span class="abrit-status-badge @(s.Status == "active" ? "is-active" : s.Status == "cancelled" ? "is-danger" : "is-muted")">@(s.Status == "active" ? "فعال" : s.Status == "expired" ? "منقضی" : s.Status == "cancelled" ? "لغوشده" : s.Status)</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

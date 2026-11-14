@@ -1,0 +1,162 @@
+# =============================================================================
+# AbrIT CMS Cloud — full production stack
+#
+#   db      : PostgreSQL 16 — two logical databases (abrit_portal, abrit_orchard)
+#   portal  : Next.js 16 — public site, customer portal, commerce API (/api/*)
+#             and reverse proxy to the CMS for /admin, /Login, module assets…
+#   cms     : Orchard Core 3.x — the REAL administration CMS
+#
+# Compose auto-loads the project .env file — copy .env.example to .env and set
+# at minimum ABRIT_SERVICE_TOKEN (shared portal⇄CMS secret). See
+# docs/DEPLOYMENT.md for the full first-run and production checklist.
+# =============================================================================
+
+name: abrit-cloud
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: abrit-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: abrit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abrit_dev_pw}
+      POSTGRES_DB: abrit_portal
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abrit -d abrit_portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    networks: [abrit]
+
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: abrit/portal:latest
+    container_name: abrit-portal
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+
+      # Prisma migrations (and optional seed) run before the server starts
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      SEED_ON_START: ${SEED_ON_START:-false}
+      DATABASE_URL: postgresql://abrit:${POSTGRES_PASSWORD:-abrit_dev_pw}@db:5432/abrit_portal?schema=public
+
+      # The REAL Orchard CMS lives in the cms service; every path that is not
+      # a Next.js route (e.g. /admin, /Login, /TheAdmin) proxies there.
+      ORCHARD_PROXY_TARGET: http://cms:5000
+
+      # Shared portal⇄CMS contract secret (REQUIRED — see .env.example)
+      ABRIT_SERVICE_TOKEN: ${ABRIT_SERVICE_TOKEN:?ABRIT_SERVICE_TOKEN is required — copy .env.example to .env and set it}
+
+      # SMS.ir OTP (placeholders allowed: display mode is dev-only)
+      SMSIR_API_KEY: ${SMSIR_API_KEY:-}
+      SMSIR_TEMPLATE_ID: ${SMSIR_TEMPLATE_ID:-}
+      SMSIR_OTP_PARAMETER_NAME: ${SMSIR_OTP_PARAMETER_NAME:-Code}
+      OTP_PROVIDER: ${OTP_PROVIDER:-sms}
+      OTP_DELIVERY_MODE: ${OTP_DELIVERY_MODE:-sms}
+      OTP_CODE_LENGTH: ${OTP_CODE_LENGTH:-6}
+      OTP_EXPIRY_SECONDS: ${OTP_EXPIRY_SECONDS:-120}
+      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+      OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-3}
+
+      # Payments — production requires a public HTTPS origin
+      ABRIT_PAYMENTS_PUBLIC_BASE_URL: ${ABRIT_PAYMENTS_PUBLIC_BASE_URL:-}
+
+      # Explicit local-only payment callback testing
+      ABRIT_PAYMENTS_ALLOW_LOCAL_CALLBACK: ${ABRIT_PAYMENTS_ALLOW_LOCAL_CALLBACK:-false}
+      ABRIT_LOCAL_DEV: ${ABRIT_LOCAL_DEV:-false}
+
+      ABRIT_PAYMENTS_ZARINPAL_MERCHANT_ID: ${ABRIT_PAYMENTS_ZARINPAL_MERCHANT_ID:-}
+      ABRIT_PAYMENTS_ZARINPAL_SANDBOX: ${ABRIT_PAYMENTS_ZARINPAL_SANDBOX:-true}
+      ABRIT_PAYMENTS_ZARINPAL_ENABLED: ${ABRIT_PAYMENTS_ZARINPAL_ENABLED:-true}
+      ABRIT_PAYMENTS_ZIBAL_MERCHANT: ${ABRIT_PAYMENTS_ZIBAL_MERCHANT:-zibal}
+      ABRIT_PAYMENTS_ZIBAL_ENABLED: ${ABRIT_PAYMENTS_ZIBAL_ENABLED:-true}
+      ABRIT_PAYMENTS_MOCK_ENABLED: ${ABRIT_PAYMENTS_MOCK_ENABLED:-false}
+
+      # AbrIT Drive (Nextcloud). Production requires NEXTCLOUD_MODE=live with
+      # real admin credentials — the simulation mode refuses to run in
+      # production by design (spec §10.2).
+      NEXTCLOUD_MODE: ${NEXTCLOUD_MODE:-live}
+      NEXTCLOUD_BASE_URL: ${NEXTCLOUD_BASE_URL:-https://drive.abrit.cloud}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-}
+      NEXTCLOUD_ADMIN_APP_PASSWORD: ${NEXTCLOUD_ADMIN_APP_PASSWORD:-}
+    ports:
+      - "${PORTAL_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks: [abrit]
+
+  cms:
+    build:
+      context: ./orchard
+      dockerfile: Dockerfile
+    image: abrit/cms:latest
+    container_name: abrit-cms
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5000
+      AbrIT__ImageSharp__CacheRootPath: /var/lib/abrit-portal/imagesharp-cache
+      AbrIT__DataProtection__KeysPath: /var/lib/abrit-portal/data-protection-keys
+
+      # Server-to-service contract to the canonical commerce records owned by
+      # the portal (customers, orders, payments, subscriptions, tickets).
+      AbrIT__CommerceApi__BaseUrl: http://portal:3000
+      AbrIT__CommerceApi__ServiceToken: ${ABRIT_SERVICE_TOKEN:?ABRIT_SERVICE_TOKEN is required — copy .env.example to .env and set it}
+      AbrIT__CommerceApi__TimeoutSeconds: "15"
+
+      # Pre-fills the first-run Orchard setup screen (PostgreSQL tenant DB).
+      OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=${POSTGRES_PASSWORD:-abrit_dev_pw}
+      OrchardCore__Default__DatabaseProvider: Postgres
+
+      # Operator-only admin bootstrap (docker compose exec cms dotnet
+      # AbrITPortal.dll --abrit-admin-bootstrap). The opt-in flag keeps the
+      # guard from the codebase: production normally uses the secure setup flow.
+      ABRIT_ADMIN_BOOTSTRAP_ENABLED: ${ABRIT_ADMIN_BOOTSTRAP_ENABLED:-false}
+      ABRIT_ORCHARD_ADMIN_USERNAME: ${ABRIT_ORCHARD_ADMIN_USERNAME:-abrit-admin}
+      ABRIT_ORCHARD_ADMIN_EMAIL: ${ABRIT_ORCHARD_ADMIN_EMAIL:-admin@abrit.ir}
+      ABRIT_ORCHARD_ADMIN_PASSWORD: ${ABRIT_ORCHARD_ADMIN_PASSWORD:-}
+    volumes:
+      - cms_appdata:/app/App_Data
+      - cms_imagesharp_cache:/var/lib/abrit-portal/imagesharp-cache
+      - cms_data_protection_keys:/var/lib/abrit-portal/data-protection-keys
+    ports:
+      # Direct CMS access for debugging; regular administration goes through
+      # the portal origin (https://<host>/admin). Remove in hardened deployments.
+      - "${CMS_PORT:-5001}:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5000/admin >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks: [abrit]
+
+networks:
+  abrit: {}
+
+volumes:
+  pgdata: {}
+  cms_appdata: {}
+  cms_imagesharp_cache: {}
+  cms_data_protection_keys: {}

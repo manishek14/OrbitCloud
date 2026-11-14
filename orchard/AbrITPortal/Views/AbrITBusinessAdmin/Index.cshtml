@@ -1,0 +1,42 @@
+@model CommerceTotals
+<div class="abrit-ops">
+    <header class="abrit-ops__hero">
+        <span class="abrit-ops__eyebrow">ABRIT OPERATIONS</span>
+        <h1>مرکز مدیریت کسب‌وکار AbrIT</h1>
+        <p>شمارنده‌ها از منبع کانونی داده‌های تجاری (اپلیکیشن پورتال مشتریان، پایگاه‌داده PostgreSQL) از طریق قرارداد سرویس‌به‌سرویس خوانده می‌شوند.</p>
+        <nav class="abrit-ops__quick" aria-label="دسترسی سریع">
+            <a href="/Admin/AbrIT/Customers">مشتریان</a>
+            <a href="/Admin/AbrIT/Orders">سفارش‌ها</a>
+            <a href="/Admin/AbrIT/Plans">تعرفه پکیج‌ها</a>
+            <a href="/Admin/AbrIT/Payments">پرداخت‌ها</a>
+            <a href="/Admin/AbrIT/Subscriptions">اشتراک‌ها</a>
+            <a href="/Admin/AbrIT/Drive">AbrIT Drive</a>
+            <a href="/Admin/AbrIT/Tickets">تیکت‌ها</a>
+            <a href="/Admin/AbrIT/Reports">گزارش‌ها</a>
+        </nav>
+    </header>
+
+    <section class="abrit-ops__stats" aria-label="شاخص‌های واقعی">
+        <article class="abrit-ops__stat"><span>مشتریان</span><strong>@Model.Customers</strong><small>حساب‌های پنل مشتریان</small></article>
+        <article class="abrit-ops__stat"><span>اشتراک‌های فعال</span><strong>@Model.ActiveSubscriptions</strong><small>اشتراک‌های جاری</small></article>
+        <article class="abrit-ops__stat"><span>سفارش‌های جدید</span><strong>@Model.NewOrders</strong><small>۳۰ روز اخیر</small></article>
+        <article class="abrit-ops__stat"><span>در انتظار پرداخت</span><strong>@Model.PendingPayments</strong><small>سفارش‌های پرداخت‌نشده</small></article>
+        <article class="abrit-ops__stat"><span>درآمد تأییدشده</span><strong>@Model.ConfirmedRevenueToman.ToString("N0")</strong><small>تومان — فقط تراکنش‌های تأیید سمت سرور</small></article>
+        <article class="abrit-ops__stat"><span>حساب‌های فعال Drive</span><strong>@Model.ActiveDriveAccounts</strong><small>AbrIT Drive (Nextcloud)</small></article>
+        <article class="abrit-ops__stat"><span>تیکت‌های باز</span><strong>@Model.PendingTickets</strong><small>پشتیبانی در انتظار پاسخ</small></article>
+    </section>
+
+    <div class="abrit-ops__grid">
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">CMS</span><h2>مدیریت محتوا و سامانه</h2></div>
+            <p>مدیریت محتوا، انواع محتوا، کتابخانه رسانه، منوها، کاربران و نقش‌های Orchard از منوی اصلی سامانه در دسترس است — این داشبورد فقط بخش کسب‌وکار AbrIT را پوشش می‌دهد.</p>
+            <a class="abrit-ops__link" href="/Admin/Contents">مدیریت محتوا</a>
+            <a class="abrit-ops__link" href="/Admin/Users">کاربران و نقش‌ها</a>
+            <a class="abrit-ops__link" href="/Admin/Media">کتابخانه رسانه</a>
+        </section>
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">معماری</span><h2>مالکیت داده</h2></div>
+            <p>رکوردهای کانونی مشتریان، سفارش‌ها، پرداخت‌ها، اشتراک‌ها و حساب‌های Drive متعلق به اپلیکیشن تجاری (PostgreSQL) است و از طریق API مستند سرویس‌به‌سرویس در همین پنل نمایش داده می‌شود؛ در Orchard نسخه دوم یا کپی از این داده‌ها وجود ندارد.</p>
+        </section>
+    </div>
+</div>

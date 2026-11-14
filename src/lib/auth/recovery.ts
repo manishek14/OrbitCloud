@@ -1,0 +1,242 @@
+// ============================================================================
+// Password recovery — durable grants (task §4 applied to the live panel).
+//
+// Replaces the audited Orchard design (reset grants + recovery versions in
+// IMemoryCache) with a database-backed implementation:
+//   • Durable across restarts and safe for multiple instances.
+//   • 6-digit code generated with a CSPRNG; stored ONLY as SHA-256.
+//   • Short expiration (10 minutes), single-use, replay-protected.
+//   • Atomic attempt counting (max 5) via conditional UPDATE — concurrent
+//     requests can never exceed the limit together.
+//   • The grant is consumed and the password changed inside one interactive
+//     transaction, so a failure never leaves the user unrecoverable and never
+//     consumes a grant before the request is validated.
+//   • Shared rate limiting: max 3 grants per email and 10 per IP hash per
+//     15 minutes (counted in the DB, not in process memory).
+//   • Public responses are uniform: an unknown email and a known email are
+//     indistinguishable — EXCEPT in the sandbox's demo delivery mode, where
+//     the code is shown for existing accounts only (documented limitation;
+//     production must use RECOVERY_DELIVERY_MODE=email, which never returns
+//     the code in the response).
+// ============================================================================
+
+import { createHash, randomInt } from "node:crypto";
+import { db } from "@/lib/db";
+import { hashPassword } from "@/lib/auth/password";
+
+export type RecoveryDeliveryMode = "display" | "email";
+
+const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_ATTEMPTS = 5;
+const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_GRANTS_PER_EMAIL = 3;
+const MAX_GRANTS_PER_IP = 10;
+
+export interface RequestGrantResult {
+  ok: true;
+  /** Uniform for known and unknown accounts. */
+  message: string;
+  /** Present only when RECOVERY_DELIVERY_MODE=display and the account exists. */
+  delivery: RecoveryDeliveryMode;
+  code?: string;
+  expiresInSeconds: number;
+}
+
+export type RecoveryErrorCode =
+  | "RATE_LIMITED"
+  | "INVALID_CODE"
+  | "CODE_EXPIRED"
+  | "TOO_MANY_ATTEMPTS"
+  | "WEAK_PASSWORD"
+  | "NOT_FOUND"
+  | "INTERNAL";
+
+const recoveryMessages: Record<RecoveryErrorCode, string> = {
+  RATE_LIMITED: "درخواست‌های بازیابی بیش از حد مجاز است؛ چند دقیقه دیگر تلاش کنید.",
+  INVALID_CODE: "کد بازیابی واردشده صحیح نیست.",
+  CODE_EXPIRED: "کد بازیابی منقضی شده است؛ دوباره درخواست دهید.",
+  TOO_MANY_ATTEMPTS: "تلاش‌های ناموفق بیش از حد مجاز است؛ کد جدید درخواست دهید.",
+  WEAK_PASSWORD: "رمز عبور جدید باید حداقل ۸ نویسه و شامل حداقل یک حرف و یک رقم باشد.",
+  NOT_FOUND: "حسابی با این ایمیل یافت نشد.",
+  INTERNAL: "عملیات بازیابی انجام نشد؛ لطفاً دوباره تلاش کنید.",
+};
+
+export class RecoveryError extends Error {
+  readonly code: RecoveryErrorCode;
+  readonly publicMessage: string;
+  readonly httpStatus: number;
+
+  constructor(code: RecoveryErrorCode, options: { httpStatus?: number; publicMessage?: string } = {}) {
+    super(recoveryMessages[code]);
+    this.name = "RecoveryError";
+    this.code = code;
+    this.publicMessage = options.publicMessage ?? recoveryMessages[code];
+    this.httpStatus = options.httpStatus ?? (code === "RATE_LIMITED" ? 429 : code === "INTERNAL" ? 500 : 400);
+  }
+}
+
+export function recoveryDeliveryMode(): RecoveryDeliveryMode {
+  const mode = (process.env.RECOVERY_DELIVERY_MODE ?? "display").trim().toLowerCase();
+    return mode === "email" ? "email" : "display";
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+/** Client IP from the trusted gateway headers (never arbitrary client headers). */
+export function clientIpHash(request: Request): string {
+  const realIp = request.headers.get("x-real-ip");
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip = (realIp && realIp.trim()) || (forwarded ? forwarded.split(",")[0].trim() : "") || "unknown";
+  return sha256(`ip:${ip}`);
+}
+
+function generateCode(): string {
+  // CSPRNG 6-digit code, 100_000..999_999 (no leading zero).
+  return String(randomInt(100_000, 1_000_000));
+}
+
+async function countRecent(ipHash: string, email: string): Promise<{ byIp: number; byEmail: number }> {
+  const since = new Date(Date.now() - RATE_WINDOW_MS);
+  const [byIp, byEmail] = await Promise.all([
+    db.recoveryGrant.count({ where: { ipHash, createdAt: { gte: since } } }),
+    db.recoveryGrant.count({ where: { user: { email }, createdAt: { gte: since } } }),
+  ]);
+  return { byIp, byEmail };
+}
+
+export const recoveryService = {
+  /**
+   * Step 1 — issue a grant. The response is uniform for known/unknown emails.
+   * In display (sandbox) mode the code is returned once for existing accounts;
+   * in email mode it is never returned by the API.
+   */
+  async requestGrant(request: Request, email: string): Promise<RequestGrantResult> {
+    if (process.env.NODE_ENV === "production") {
+      throw new RecoveryError("INTERNAL", {
+        httpStatus: 503,
+        publicMessage: "بازیابی با ایمیل تا زمان راه‌اندازی سرویس ارسال ایمیل در دسترس نیست. از بازیابی با شماره همراه استفاده کنید.",
+      });
+    }
+    const normalized = email.trim().toLowerCase();
+    const ipHash = clientIpHash(request);
+
+    const { byIp, byEmail } = await countRecent(ipHash, normalized);
+    if (byIp >= MAX_GRANTS_PER_IP || byEmail >= MAX_GRANTS_PER_EMAIL) {
+      throw new RecoveryError("RATE_LIMITED", { httpStatus: 429 });
+    }
+
+    const user = await db.panelUser.findUnique({ where: { email: normalized } });
+    const genericMessage =
+      "اگر حسابی با این ایمیل وجود داشته باشد، کد بازیابی صادر و به روش پیکربندی‌شده ارسال می‌شود. کد‌ها ۱۰ دقیقه اعتبار دارند و یک‌بار مصرف هستند.";
+
+    if (!user) {
+      // Uniform response — no code, identical message. Existence is not leaked
+      // (the grant row is only created for real accounts; the code display in
+      // demo mode is the single documented deviation, see file header).
+      return { ok: true, message: genericMessage, delivery: recoveryDeliveryMode(), expiresInSeconds: Math.floor(CODE_TTL_MS / 1000) };
+    }
+
+    const code = generateCode();
+    await db.recoveryGrant.create({
+      data: {
+        userId: user.id,
+        codeHash: sha256(code),
+        expiresAt: new Date(Date.now() + CODE_TTL_MS),
+        ipHash,
+      },
+    });
+
+    return {
+      ok: true,
+      message: genericMessage,
+      delivery: recoveryDeliveryMode(),
+      code: recoveryDeliveryMode() === "display" ? code : undefined,
+      expiresInSeconds: Math.floor(CODE_TTL_MS / 1000),
+    };
+  },
+
+  /**
+   * Step 2 — verify the code and reset the password in ONE flow.
+   * The attempt counter, grant consumption and password change are atomic:
+   * a failure anywhere leaves a consistent, recoverable state.
+   */
+  async resetPassword(request: Request, email: string, code: string, newPassword: string): Promise<void> {
+    const normalized = email.trim().toLowerCase();
+    const ipHash = clientIpHash(request);
+    const { byIp } = await countRecent(ipHash, normalized);
+    if (byIp > MAX_GRANTS_PER_IP + 2) {
+      throw new RecoveryError("RATE_LIMITED", { httpStatus: 429 });
+    }
+
+    const user = await db.panelUser.findUnique({ where: { email: normalized } });
+    if (!user) {
+      // Same error shape as an invalid code — no existence disclosure.
+      throw new RecoveryError("INVALID_CODE");
+    }
+
+    // Latest unconsumed grant for this user.
+    const grant = await db.recoveryGrant.findFirst({
+      where: { userId: user.id, consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!grant) {
+      throw new RecoveryError("CODE_EXPIRED");
+    }
+    if (grant.expiresAt.getTime() < Date.now()) {
+      throw new RecoveryError("CODE_EXPIRED");
+    }
+    if (grant.attempts >= MAX_ATTEMPTS) {
+      throw new RecoveryError("TOO_MANY_ATTEMPTS");
+    }
+
+    const submitted = String(code ?? "").replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).trim();
+
+    // Atomically count the attempt (conditional UPDATE — concurrency-safe).
+    const counted = await db.recoveryGrant.updateMany({
+      where: { id: grant.id, attempts: { lt: MAX_ATTEMPTS }, consumedAt: null },
+      data: { attempts: { increment: 1 } },
+    });
+    if (counted.count === 0) {
+      throw new RecoveryError("TOO_MANY_ATTEMPTS");
+    }
+
+    if (sha256(submitted) !== grant.codeHash) {
+      throw new RecoveryError("INVALID_CODE");
+    }
+
+    // Validate the password policy BEFORE consuming the grant (never consume
+    // irreversibly before validating the request — task §4).
+    if (typeof newPassword !== "string" || newPassword.length < 8 || newPassword.length > 128 || !/[A-Za-zآ-ی]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      throw new RecoveryError("WEAK_PASSWORD");
+    }
+
+    // Consume the grant and change the password in a single transaction, so
+    // a crash between the two can never burn the grant without a new password
+    // (and vice versa).
+    try {
+      await db.$transaction(async (tx) => {
+        const consumed = await tx.recoveryGrant.updateMany({
+          where: { id: grant.id, consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+        if (consumed.count === 0) {
+          throw new Error("GRANT_ALREADY_CONSUMED");
+        }
+        await tx.panelUser.update({
+          where: { id: user.id },
+          data: { passwordHash: hashPassword(newPassword), updatedAt: new Date() },
+        });
+        // Invalidate existing sessions — a reset must log out other devices.
+        await tx.session.deleteMany({ where: { userId: user.id } });
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "GRANT_ALREADY_CONSUMED") {
+        throw new RecoveryError("CODE_EXPIRED");
+      }
+      console.error("[recovery] reset transaction failed:", error);
+      throw new RecoveryError("INTERNAL", { httpStatus: 500 });
+    }
+  },
+};

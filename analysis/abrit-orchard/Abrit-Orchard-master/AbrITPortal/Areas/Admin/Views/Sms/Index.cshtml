@@ -1,0 +1,30 @@
+@model IReadOnlyList<AbrITPortal.Notifications.SmsOutboxMessage>
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    var providers = ViewBag.Providers as IEnumerable<dynamic> ?? Array.Empty<dynamic>();
+    var count = Model?.Count ?? 0;
+}
+<div class="abrit-admin-page" dir="rtl">
+  <div class="page-heading"><div><span class="eyebrow">AbrIT Operations</span><h1>عملیات پیامک و صف ارسال</h1><p>ارسال فعال از مسیر SMS.ir/Outbox (حالت Mock-first؛ ارسال زنده تا تأیید قرارداد/اعتبارنامه مسدود است). مقادیر OTP نمایش داده نمی‌شوند.</p></div></div>
+  @if (TempData["Success"] is string ok){ <div class="alert alert-success" role="status">@ok</div> }
+  <div class="abrit-admin-kpis">
+    <div class="abrit-admin-kpi"><span class="abrit-admin-kpi__label">پیام‌های صف (اخیر)</span><strong class="abrit-admin-kpi__value">@count</strong></div>
+    <div class="abrit-admin-kpi"><span class="abrit-admin-kpi__label">ارائه‌دهندگان</span><strong class="abrit-admin-kpi__value">@providers.Count()</strong></div>
+  </div>
+  <section class="admin-section">
+    <h2>ارائه‌دهندگان پیامک</h2>
+    <div class="table-scroll"><table class="table admin-table"><thead><tr><th>کد</th><th>فعال</th></tr></thead><tbody>
+    @foreach(var p in providers){ <tr><td class="cell-mono">@p.Code</td><td>@(p.IsEnabled ? "بله" : "خیر")</td></tr> }
+    @if(!providers.Any()){ <tr><td colspan="2"><div class="portal-empty-state portal-empty-state--compact"><h3 class="portal-empty-state__title">ارائه‌دهنده‌ای یافت نشد</h3></div></td></tr> }
+    </tbody></table></div>
+  </section>
+  <section class="admin-section">
+    <div class="abrit-admin-toolbar"><h2 style="margin:0">صف ارسال (Outbox)</h2>
+      <form asp-action="RecoverLeases" method="post">@Html.AntiForgeryToken()<button class="btn btn-secondary" type="submit">بازیابی Leaseهای منقضی</button></form>
+    </div>
+    <div class="table-scroll"><table class="table admin-table"><thead><tr><th>شناسه</th><th>گیرنده</th><th>هدف</th><th>اولویت</th><th>وضعیت</th><th>تلاش</th><th>تلاش بعدی</th><th>شناسه پیام</th><th>خطا</th><th>پیش‌نمایش</th></tr></thead><tbody>
+    @if(Model != null){ foreach(var m in Model){ <tr><td class="cell-mono">@m.Id</td><td dir="ltr">@m.Recipient</td><td>@m.Purpose</td><td>@m.Priority</td><td><span class="status-badge">@m.Status</span></td><td>@m.AttemptCount/@m.MaxAttempts</td><td dir="ltr">@m.NextAttemptUtc</td><td class="cell-mono">@m.ProviderMessageId</td><td>@m.FailureCategory @m.LastError</td><td>@m.MessagePreview</td></tr> } }
+    @if(Model == null || !Model.Any()){ <tr><td colspan="10"><div class="portal-empty-state portal-empty-state--compact"><h3 class="portal-empty-state__title">پیامی در صف نیست</h3><p>در حال حاضر موردی برای نمایش وجود ندارد.</p></div></td></tr> }
+    </tbody></table></div>
+  </section>
+</div>

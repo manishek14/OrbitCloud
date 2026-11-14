@@ -1,0 +1,7 @@
+@model IEnumerable<object>
+<div class="row">
+    @foreach (var item in Model)
+    {
+        @await DisplayAsync(item)
+    }
+</div>

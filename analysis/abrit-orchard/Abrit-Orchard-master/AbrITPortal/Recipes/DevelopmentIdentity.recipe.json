@@ -1,0 +1,21 @@
+{
+  "name": "AbrITPortal.DevelopmentIdentity",
+  "displayName": "AbrIT Portal development identity features",
+  "description": "Enable native Orchard identity and local email features in an isolated development tenant. Apply settings with --abrit-identity-setup.",
+  "author": "AbrIT",
+  "website": "",
+  "version": "1.0",
+  "issetuprecipe": false,
+  "steps": [
+    {
+      "name": "feature",
+      "enable": [
+        "OrchardCore.Email",
+        "OrchardCore.Email.Smtp",
+        "OrchardCore.Users.Registration",
+        "OrchardCore.Users.ResetPassword",
+        "OrchardCore.Users.ChangeEmail"
+      ]
+    }
+  ]
+}

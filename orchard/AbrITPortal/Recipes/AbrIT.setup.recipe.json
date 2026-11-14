@@ -1,0 +1,49 @@
+{
+  "name": "AbrIT",
+  "displayName": "AbrIT Site",
+  "description": "The AbrIT production site: full CMS administration (content, media, users, roles, workflows, queries, recipes, localization, audit trail) with the AbrITAdminTheme admin theme and the AbrIT business administration module.",
+  "author": "AbrIT",
+  "website": "https://abrit.cloud",
+  "version": "1.0.0",
+  "issetuprecipe": true,
+  "tags": [
+    "default",
+    "abrit"
+  ],
+  "steps": [
+    {
+      "name": "feature",
+      "enable": [
+        "AbrITAdminTheme",
+        "OrchardCore.AdminDashboard",
+        "OrchardCore.Alias",
+        "OrchardCore.AuditTrail",
+        "OrchardCore.Autoroute",
+        "OrchardCore.ContentTypes",
+        "OrchardCore.Contents",
+        "OrchardCore.Flows",
+        "OrchardCore.Html",
+        "OrchardCore.Layers",
+        "OrchardCore.Lists",
+        "OrchardCore.Localization",
+        "OrchardCore.Media",
+        "OrchardCore.Menu",
+        "OrchardCore.Navigation",
+        "OrchardCore.Queries",
+        "OrchardCore.Recipes",
+        "OrchardCore.Roles",
+        "OrchardCore.Taxonomies",
+        "OrchardCore.Title",
+        "OrchardCore.Users",
+        "OrchardCore.Users.Core",
+        "OrchardCore.Widgets",
+        "OrchardCore.Workflows"
+      ]
+    },
+    {
+      "name": "settings",
+      "TimeZoneId": "Asia/Tehran",
+      "Calendar": "Persian"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+@model CommercePlanRow?
+@{
+    var isNew = Model is null;
+    var storageGb = ((Model?.DriveQuotaBytes ?? 0) / 1073741824m).ToString(System.Globalization.CultureInfo.InvariantCulture);
+}
+<input type="hidden" name="IsNew" value="@isNew.ToString().ToLowerInvariant()" />
+<input type="hidden" name="Revision" value="@(Model?.Revision ?? 0)" />
+<div class="abrit-pricing-grid">
+    <label>شناسه انگلیسی <input name="Code" value="@Model?.Code" maxlength="64" pattern="[a-z][a-z0-9_-]+" required readonly="@(!isNew)" /></label>
+    <label>نام پکیج <input name="NameFa" value="@Model?.NameFa" required maxlength="1000" /></label>
+    <label>نام انگلیسی <input name="NameEn" value="@Model?.NameEn" required maxlength="1000" /></label>
+    <label>مخاطب <input name="AudienceFa" value="@Model?.AudienceFa" maxlength="1000" /></label>
+    <label>ترتیب <input type="number" name="Order" value="@(Model?.Order ?? 0)" min="0" required /></label>
+    <label>قیمت ماهانه (تومان) <input type="number" name="MonthlyPriceToman" value="@(Model?.MonthlyPriceToman ?? 0)" min="0" step="1" required /></label>
+    <label>کاربران شامل <input type="number" name="IncludedUsers" value="@(Model?.IncludedUsers ?? 1)" min="0" required /></label>
+    <label>Endpoint شامل <input type="number" name="IncludedEndpoints" value="@(Model?.IncludedEndpoints ?? 1)" min="0" required /></label>
+    <label>سرور شامل <input type="number" name="IncludedServers" value="@(Model?.IncludedServers ?? 0)" min="0" required /></label>
+    <label>سایت شامل <input type="number" name="IncludedSites" value="@(Model?.IncludedSites ?? 0)" min="0" required /></label>
+    <label>تجهیزات شبکه شامل <input type="number" name="IncludedNetworkDevices" value="@(Model?.IncludedNetworkDevices ?? 0)" min="0" required /></label>
+    <label>فضای Drive (گیگابایت) <input type="number" name="DriveStorageGb" value="@storageGb" min="0" step="0.00000001" required /></label>
+    <label>کاربر اضافه/ماه (تومان) <input type="number" name="ExtraUserFeeTomanPerMonth" value="@(Model?.ExtraUserFeeTomanPerMonth ?? 0)" min="0" required /></label>
+    <label>Endpoint اضافه/ماه (تومان) <input type="number" name="ExtraEndpointFeeTomanPerMonth" value="@(Model?.ExtraEndpointFeeTomanPerMonth ?? 0)" min="0" required /></label>
+    <label>SLA شروع رسیدگی <input name="SlaLabelFa" value="@Model?.SlaLabelFa" required /></label>
+    <label>توضیح SLA <input name="SlaDetailFa" value="@Model?.SlaDetailFa" /></label>
+    <label>پشتیبانی <input name="SupportHoursFa" value="@Model?.SupportHoursFa" required /></label>
+    <label>VPS <input name="VpsFa" value="@Model?.VpsFa" /></label>
+    <label>خدمات حضوری <input name="OnSiteFa" value="@Model?.OnSiteFa" /></label>
+    <label class="abrit-pricing-wide">خدمات پکیج (هر سطر یک مورد) <textarea name="BenefitsFa" rows="4">@(Model is null ? "" : string.Join("\n", Model.BenefitsFa))</textarea></label>
+    <label class="abrit-pricing-check"><input type="checkbox" name="Orderable" value="true" checked="@(Model?.Orderable ?? true)" /> قابل خرید</label>
+    <label class="abrit-pricing-check"><input type="checkbox" name="Featured" value="true" checked="@(Model?.Featured ?? false)" /> ویژه</label>
+</div>
+<div class="abrit-pricing-actions"><button type="submit">ذخیره</button><button type="button" data-close-form>انصراف</button></div>

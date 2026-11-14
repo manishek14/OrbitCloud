@@ -1,0 +1,84 @@
+@*
+    AbrIT branded admin login (Orchard Core Identity /Login).
+    Real Orchard form contract preserved EXACTLY:
+      • POST /Login with LoginForm.UserName / LoginForm.Password /
+        LoginForm.RememberMe + __RequestVerificationToken (validated by the
+        AccountController with [ValidateAntiForgeryToken]).
+      • ReturnUrl preserved through the form action route value.
+      • ModelState errors surfaced as a Persian alert (server is the authority).
+    This is the ADMINISTRATOR entry point. Customers authenticate through the
+    Next.js portal at /auth/login — the two are intentionally separate.
+*@
+@{
+    ViewLayout = "Layout__Login";
+    var returnUrl = Context.Request.Query["ReturnUrl"].ToString();
+    // Without an explicit ReturnUrl the administrator lands on the admin area.
+    var effectiveReturnUrl = string.IsNullOrWhiteSpace(returnUrl) ? "/admin" : returnUrl;
+    var hasError = !ViewContext.ModelState.IsValid;
+}
+<style asp-name="abrit-admin" at="Head"></style>
+<style asp-name="abrit-admin-polish" at="Head"></style>
+<div class="abrit-auth">
+    <div class="abrit-auth__panel">
+        <div class="abrit-auth__brand">
+            <img class="abrit-auth__mark" src="~/AbrITAdminTheme/img/abrit-icon.svg" alt="نماد AbrIT" width="44" height="44" />
+            <span class="abrit-auth__brandname">
+                <strong>AbrIT</strong>
+                <small>مدیریت سامانه — پنل مدیران</small>
+            </span>
+        </div>
+
+        <section class="abrit-auth__card" aria-labelledby="abrit-login-title">
+            <h1 class="abrit-auth__title" id="abrit-login-title">ورود به مدیریت سامانه</h1>
+            <p class="abrit-auth__subtitle">
+                با نام کاربری یا ایمیل مدیر و گذرواژه وارد شوید. این صفحه همان سیستم
+                هویت Orchard Core است و ورود مشتریان از مسیر جداگانه انجام می‌شود.
+            </p>
+
+            @if (hasError)
+            {
+                <div class="abrit-auth__error" id="abrit-login-error" role="alert">
+                    نام کاربری یا گذرواژه صحیح نیست؛ دوباره تلاش کنید.
+                </div>
+            }
+
+            <form method="post" asp-action="Login" asp-controller="Account" asp-area="OrchardCore.Users"
+                  asp-route-returnurl="@effectiveReturnUrl" class="no-multisubmit" novalidate>
+                <div class="abrit-auth__field">
+                    <label for="LoginForm_UserName">نام کاربری یا ایمیل</label>
+                    <input id="LoginForm_UserName" name="LoginForm.UserName" type="text"
+                           class="abrit-auth__input" dir="ltr" autocomplete="username"
+                           placeholder="نام کاربری یا ایمیل" aria-invalid="@(hasError ? "true" : "false")"
+                           autofocus tabindex="1" required />
+                </div>
+
+                <div class="abrit-auth__field">
+                    <label for="LoginForm_Password">گذرواژه</label>
+                    <input id="LoginForm_Password" name="LoginForm.Password" type="password"
+                           class="abrit-auth__input" dir="ltr" autocomplete="current-password"
+                           placeholder="گذرواژه" aria-invalid="@(hasError ? "true" : "false")"
+                           tabindex="2" required />
+                </div>
+
+                <div class="abrit-auth__field abrit-auth__check">
+                    <input id="LoginForm_RememberMe" name="LoginForm.RememberMe" type="checkbox"
+                           value="true" tabindex="3" />
+                    <label for="LoginForm_RememberMe">مرا به خاطر بسپار</label>
+                </div>
+                <input name="LoginForm.RememberMe" type="hidden" value="false" />
+
+                <button type="submit" class="abrit-auth__submit" tabindex="4">ورود به پنل مدیریت</button>
+            </form>
+
+            <div class="abrit-auth__links">
+                <a href="/ForgotPassword">گذرواژه را فراموش کرده‌اید؟</a>
+                <a href="/auth/login">ورود مشتریان AbrIT</a>
+            </div>
+        </section>
+
+        <p class="abrit-auth__footer">
+            AbrIT — سامانه مدیریت فناوری اطلاعات<br />
+            این پنل فقط برای مدیران سیستم است.
+        </p>
+    </div>
+</div>

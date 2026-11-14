@@ -1,0 +1,33 @@
+@inject IOptions<OrchardCore.Admin.AdminOptions> AdminOptions
+<zone name="HeadMeta">
+    <link rel="icon" type="image/svg+xml" href="~/AbrITAdminTheme/img/abrit-icon.svg" />
+</zone>
+<style asp-name="abrit-admin" at="Head"></style>
+<style asp-name="abrit-admin-polish" at="Head"></style>
+<script at="Head">
+    // AbrIT admin appearance: DARK is the default; an explicit user choice
+    // persists. Integration note: OrchardCore.Themes' theme-head script owns
+    // the theme store ("{tenant}-theme" in localStorage) and re-applies the
+    // preferred theme when <body> mounts — so this script seeds and applies
+    // the SAME store (dark by default) instead of fighting it with a private
+    // key. TheAdmin's toggle persists there natively as well.
+    (function () {
+        try {
+            var root = document.documentElement;
+            var key = (root.getAttribute('data-tenant') || 'Default') + '-theme';
+            var stored = localStorage.getItem(key);
+            if (stored !== 'light' && stored !== 'dark' && stored !== 'auto') {
+                stored = 'dark';
+                localStorage.setItem(key, 'dark');
+            }
+            if (stored === 'auto') {
+                stored = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            root.setAttribute('data-bs-theme', stored);
+        } catch (e) { /* storage unavailable — theme-head applies its own default */ }
+    })();
+</script>
+<a class="ta-navbar-brand navbar-brand" href="@Url.Content("~/" + AdminOptions.Value.AdminUrlPrefix)">
+    <img class="abrit-admin-brand-mark" src="~/AbrITAdminTheme/img/abrit-icon.svg" alt="نماد AbrIT" width="34" height="34" />
+    <span>AbrIT <small>مدیریت سامانه</small></span>
+</a>

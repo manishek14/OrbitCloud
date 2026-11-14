@@ -1,0 +1,36 @@
+@model IReadOnlyList<CommerceTransaction>
+<div class="abrit-ops">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>پرداخت‌ها</h1><p>تراکنش‌های درگاه زرین‌پال و زیبال (Sandbox). وضعیت «موفق» فقط پس از تأیید سمت سرور با API درگاه ثبت می‌شود؛ بانک ملت غیرفعال است.</p></header>
+    @if (Model.Count == 0)
+    {
+        <p class="abrit-ops__muted">تراکنشی ثبت نشده است.</p>
+    }
+    else
+    {
+        <div class="abrit-admin-table-wrap">
+            <table class="abrit-admin-table">
+                <caption class="sr-only">فهرست تراکنش‌ها</caption>
+                <thead><tr><th scope="col">مرجع</th><th scope="col">سفارش</th><th scope="col">درگاه</th><th scope="col">مبلغ (تومان)</th><th scope="col">وضعیت</th><th scope="col">تاریخ</th><th scope="col">تأیید نهایی</th></tr></thead>
+                <tbody>
+                @foreach (var t in Model)
+                {
+                    <tr>
+                        <td dir="ltr"><strong>@t.Ref</strong></td>
+                        <td dir="ltr">@t.OrderNumber</td>
+                        <td>@(t.Gateway == "zarinpal" ? "زرین‌پال (Sandbox)" : t.Gateway == "zibal" ? "زیبال (Sandbox)" : t.Gateway)</td>
+                        <td>@t.AmountToman.ToString("N0")</td>
+                        <td>
+                            <span class="abrit-status-badge @(t.Status == "succeeded" ? "is-active" : t.Status == "pending" ? "is-pending" : t.Status == "failed" || t.Status == "cancelled" ? "is-danger" : "is-info")">
+                                @(t.Status == "succeeded" ? "موفق" : t.Status == "pending" ? "در جریان" : t.Status == "failed" ? "ناموفق" : t.Status == "cancelled" ? "لغوشده" : t.Status)
+                            </span>
+                        </td>
+                        <td dir="ltr">@ViewFormats.CompactDate(t.CreatedAt)</td>
+                        <td dir="ltr">@(t.FinalizedAt ?? "—")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

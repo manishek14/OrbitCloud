@@ -1,0 +1,13 @@
+@model AbrITPortal.Areas.Admin.Controllers.AbrITOperationsSection
+<div class="abrit-ops" dir="rtl">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد AbrIT</a>
+    <div class="abrit-ops__hero"><span class="abrit-ops__eyebrow">AbrIT Operations</span><h1>@Model.Title</h1><p>@Model.Description</p></div>
+    <div class="alert alert-info" role="status">این بخش تا تکمیل داده‌ها و فرایندهای سمت سرور، عملیات اجرایی یا آمار تخمینی نمایش نمی‌دهد.</div>
+    @if (Model.Title == "تنظیمات سامانه")
+    {
+        <div class="abrit-ops__quick abrit-ops__quick--light">
+            <a href="/Admin/AbrIT/Commercial/Plans">تنظیمات پلن‌های تجاری</a>
+            <a href="/Admin/Settings">تنظیمات بومی Orchard</a>
+        </div>
+    }
+</div>

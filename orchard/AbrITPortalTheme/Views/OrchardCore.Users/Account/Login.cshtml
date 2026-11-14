@@ -1,0 +1,247 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using OrchardCore.Users
+@using OrchardCore.Users.Models
+@inject SignInManager<IUser> SignInManager
+@{
+    ViewLayout = "Layout__Login";
+    var providers = await SignInManager.GetExternalAuthenticationSchemesAsync();
+    var disableLocalLogin = Site.GetOrCreate<LoginSettings>().DisableLocalLogin;
+}
+<div class="auth-shell auth-shell--premium">
+    <div class="auth-intro">
+      <span class="eyebrow">AbrIT Cloud</span>
+      <h1>ورود به پرتال مشتریان AbrIT</h1>
+      <p>با ورود به حساب، داشبورد، سفارش‌ها، سرویس‌ها و فضای ابری خود را مدیریت کنید.</p>
+      <ul class="auth-intro__points">
+        <li>ورود امن با نام کاربری/ایمیل و گذرواژه</li>
+        <li>فراموشی رمز و بازیابی/ورود با کد پیامکی (OTP)</li>
+        <li>مدیریت حساب، شماره همراه و وضعیت Drive</li>
+      </ul>
+    </div>
+    @if (!disableLocalLogin)
+    {
+        <section class="auth-card" aria-labelledby="login-heading" id="login-form-section">
+            <div class="auth-card__head"><span class="eyebrow">ورود امن</span><h2 id="login-heading">ورود به حساب</h2><p>اطلاعات ورود خود را وارد کنید یا از مسیرهای بازیابی استفاده کنید.</p></div>
+            <div class="auth-card__body">
+              @if (!ViewContext.ModelState.IsValid) { <div class="auth-error" role="alert">اطلاعات ورود نامعتبر است. لطفاً بررسی و دوباره تلاش کنید.</div> }
+              @await DisplayAsync(Model)
+              <div class="auth-links" style="margin-top:1rem"><a href="/ForgotPassword">فراموشی گذرواژه</a><a href="/customer/recover" id="switch-to-otp">ورود/بازیابی با OTP</a><a href="/customer/register">ثبت‌نام</a></div>
+            </div>
+        </section>
+    }
+    <section class="auth-card" aria-labelledby="otp-heading" id="otp-form-section" style="display:none">
+        <div class="auth-card__head"><span class="eyebrow">ورود با OTP</span><h2 id="otp-heading">ورود با کد یکبارمصرف</h2><p>شماره همراه تأییدشده خود را وارد کنید تا کد ۶ رقمی ارسال شود.</p></div>
+        <div class="auth-card__body">
+            <form id="otp-request-form" class="auth-form" method="post" action="/customer/recover">
+                <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()" />
+                <div class="portal-field">
+                    <label for="otp-mobile">شماره همراه</label>
+                    <input id="otp-mobile" name="usernameOrMobile" type="tel" inputmode="tel" dir="ltr" class="form-control" required placeholder="۰۹xxxxxxxxx" autocomplete="tel" />
+                </div>
+                <button class="portal-button portal-button--primary" type="submit" id="otp-send-btn">ارسال کد تأیید</button>
+            </form>
+            <form id="otp-verify-form" class="auth-form" method="post" action="/customer/recover/verify" style="display:none">
+                <input type="hidden" name="__RequestVerificationToken" value="@Html.AntiForgeryToken()" />
+                <input type="hidden" name="challenge" id="otp-challenge" />
+                <div class="portal-field">
+                    <label for="otp-code">کد تأیید ۶ رقمی</label>
+                    <div class="otp-boxes" role="group" aria-label="کد تأیید ۶ رقمی">
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم اول" />
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم دوم" />
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم سوم" />
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم چهارم" />
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم پنجم" />
+                        <input type="text" class="otp-box" maxlength="1" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" aria-label=" رقم ششم" />
+                        <input type="hidden" name="code" id="otp-code-hidden" />
+                    </div>
+                </div>
+                <span class="otp-hint">اعتبار کد محدود است. کد را دقیق وارد کنید.</span>
+                <div class="auth-alt" style="margin-top:.5rem"><a href="#" id="otp-resend" style="display:none">ارسال مجدد کد</a> · <span id="otp-timer" style="color:var(--abrit-muted);font-size:.85rem"></span></div>
+                <button class="portal-button portal-button--primary" type="submit" id="otp-verify-btn">تأیید و ورود</button>
+            </form>
+            <div class="auth-alt" style="margin-top:1rem"><a href="#" id="back-to-login">بازگشت به ورود با گذرواژه</a></div>
+        </div>
+    </section>
+    @if (providers.Any())
+    {
+        <section class="auth-card"><h2>ورود با روش دیگر</h2>
+            <form asp-controller="ExternalAuthentications" asp-action="ExternalLogin" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" class="auth-form">
+                @foreach (var provider in providers)
+                {
+                    <button type="submit" class="portal-button portal-button--secondary" name="provider" value="@provider.Name">ورود با @provider.DisplayName</button>
+                }
+            </form>
+        </section>
+    }
+</div>
+
+<script>
+(function() {
+    const loginSection = document.getElementById('login-form-section');
+    const otpSection = document.getElementById('otp-form-section');
+    const switchToOtp = document.getElementById('switch-to-otp');
+    const backToLogin = document.getElementById('back-to-login');
+    const otpRequestForm = document.getElementById('otp-request-form');
+    const otpVerifyForm = document.getElementById('otp-verify-form');
+    const otpBoxes = document.querySelectorAll('.otp-box');
+    const otpCodeHidden = document.getElementById('otp-code-hidden');
+    const otpChallenge = document.getElementById('otp-challenge');
+    const otpResend = document.getElementById('otp-resend');
+    const otpTimer = document.getElementById('otp-timer');
+    let resendTimer = null;
+    let resendSeconds = 0;
+
+    function showOtpSection() {
+        if (loginSection) loginSection.style.display = 'none';
+        if (otpSection) otpSection.style.display = 'block';
+        resetOtpForms();
+    }
+
+    function showLoginSection() {
+        if (otpSection) otpSection.style.display = 'none';
+        if (loginSection) loginSection.style.display = 'block';
+        stopResendTimer();
+    }
+
+    function resetOtpForms() {
+        if (otpRequestForm) otpRequestForm.style.display = 'block';
+        if (otpVerifyForm) otpVerifyForm.style.display = 'none';
+        if (otpResend) otpResend.style.display = 'none';
+        if (otpTimer) otpTimer.textContent = '';
+        otpBoxes.forEach(box => { box.value = ''; box.classList.remove('filled'); });
+        if (otpCodeHidden) otpCodeHidden.value = '';
+        stopResendTimer();
+    }
+
+    function startResendTimer(seconds) {
+        resendSeconds = seconds;
+        if (otpResend) otpResend.style.display = 'none';
+        updateTimerDisplay();
+        resendTimer = setInterval(() => {
+            resendSeconds--;
+            if (resendSeconds <= 0) {
+                stopResendTimer();
+                if (otpResend) otpResend.style.display = 'inline';
+            } else {
+                updateTimerDisplay();
+            }
+        }, 1000);
+    }
+
+    function stopResendTimer() {
+        if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
+    }
+
+    function updateTimerDisplay() {
+        if (otpTimer) {
+            const m = Math.floor(resendSeconds / 60);
+            const s = resendSeconds % 60;
+            otpTimer.textContent = `ارسال مجدد در ${m}:${s.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // OTP box navigation
+    otpBoxes.forEach((box, index) => {
+        box.addEventListener('input', (e) => {
+            if (e.inputType === 'deleteContentBackward' && !box.value && index > 0) {
+                otpBoxes[index - 1].focus();
+            } else if (box.value && index < otpBoxes.length - 1) {
+                otpBoxes[index + 1].focus();
+            }
+            box.classList.toggle('filled', !!box.value);
+            updateHiddenCode();
+        });
+        box.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !box.value && index > 0) {
+                otpBoxes[index - 1].focus();
+            }
+        });
+        box.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+            paste.split('').forEach((char, i) => {
+                if (otpBoxes[i]) { otpBoxes[i].value = char; otpBoxes[i].classList.add('filled'); }
+            });
+            if (paste.length > 0) {
+                const lastIndex = Math.min(paste.length - 1, otpBoxes.length - 1);
+                otpBoxes[lastIndex].focus();
+            }
+            updateHiddenCode();
+        });
+    });
+
+    function updateHiddenCode() {
+        const code = Array.from(otpBoxes).map(b => b.value).join('');
+        if (otpCodeHidden) otpCodeHidden.value = code;
+    }
+
+    // Switch to OTP
+    if (switchToOtp) {
+        switchToOtp.addEventListener('click', (e) => {
+            e.preventDefault();
+            showOtpSection();
+        });
+    }
+
+    // Back to login
+    if (backToLogin) {
+        backToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginSection();
+        });
+    }
+
+    // OTP request form submit
+    if (otpRequestForm) {
+        otpRequestForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('otp-send-btn');
+            const mobile = document.getElementById('otp-mobile').value.trim();
+            if (!mobile) return;
+            btn.disabled = true;
+            btn.textContent = 'در حال ارسال...';
+            try {
+                const response = await fetch('/customer/recover', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(new FormData(otpRequestForm)),
+                    credentials: 'same-origin'
+                });
+                const html = await response.text();
+                // Parse challenge ID from response
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const challengeInput = doc.querySelector('input[name="challenge"]');
+                if (challengeInput && challengeInput.value) {
+                    otpChallenge.value = challengeInput.value;
+                    otpRequestForm.style.display = 'none';
+                    otpVerifyForm.style.display = 'block';
+                    startResendTimer(120); // 2 minutes
+                } else {
+                    // Show error
+                    const errorEl = doc.querySelector('.auth-error, .portal-alert--danger, .validation-summary-errors');
+                    alert(errorEl ? errorEl.textContent.trim() : 'خطا در ارسال کد. لطفاً دوباره تلاش کنید.');
+                }
+            } catch (err) {
+                alert('خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'ارسال کد تأیید';
+            }
+        });
+    }
+
+    // Resend OTP
+    if (otpResend) {
+        otpResend.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Re-submit the request form
+            const event = new Event('submit', { cancelable: true });
+            otpRequestForm.dispatchEvent(event);
+        });
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', stopResendTimer);
+})();
+</script>

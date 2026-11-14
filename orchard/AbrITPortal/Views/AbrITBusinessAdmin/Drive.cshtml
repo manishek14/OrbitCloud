@@ -1,0 +1,32 @@
+@model IReadOnlyList<CommerceDriveRow>
+<div class="abrit-ops">
+    <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>حساب‌های AbrIT Drive</h1><p>حساب‌های واقعی Nextcloud که با OCS User Provisioning API ساخته شده‌اند؛ سهمیه‌ها واقعی هستند و پس از خرید پکیج به‌روزرسانی می‌شوند. هر مشتری ۱۰۰ مگابایت فضای آزمایشی رایگان دارد.</p></header>
+    @if (Model.Count == 0)
+    {
+        <p class="abrit-ops__muted">حساب Drive فعال نشده است.</p>
+    }
+    else
+    {
+        <div class="abrit-admin-table-wrap">
+            <table class="abrit-admin-table">
+                <caption class="sr-only">فهرست حساب‌های Drive</caption>
+                <thead><tr><th scope="col">مشتری</th><th scope="col">شناسه Nextcloud</th><th scope="col">پلن</th><th scope="col">سهمیه</th><th scope="col">وضعیت</th><th scope="col">راه‌اندازی</th><th scope="col">آخرین همگام‌سازی</th></tr></thead>
+                <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr>
+                        <td><strong>@(d.CustomerName ?? d.CustomerEmail ?? "—")</strong></td>
+                        <td dir="ltr">@d.NcUsername</td>
+                        <td>@d.PlanNameFa</td>
+                        <td>@(d.QuotaBytes / 1024 / 1024) MB</td>
+                        <td><span class="abrit-status-badge @(d.Status == "active" ? "is-active" : "is-muted")">@(d.Status == "active" ? "فعال" : "غیرفعال")</span></td>
+                        <td dir="ltr">@d.ProvisionedAt</td>
+                        <td dir="ltr">@ViewFormats.CompactDate(d.LastSyncedAt)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,0 +1,385 @@
+// AbrIT SaaS Platform — Prisma schema
+// Extends the previously tested Drive/auth models with the full commerce,
+// support, content and administration domain required by the portal redesign.
+// The current commercial catalog is persisted in PricingPlan/PricingContract.
+// Orders retain their immutable purchase-time snapshots.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model PanelUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  mobile       String?   @unique
+  company      String?
+  passwordHash String
+  role         String    @default("customer") // admin | staff | customer
+  status       String    @default("active") // active | disabled
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  sessions       Session[]
+  driveAccount   DriveAccount?
+  recoveryGrants RecoveryGrant[]
+  cartItems      CartItem[]
+  orders         Order[]
+  invoices       Invoice[]
+  transactions   Transaction[]
+  subscriptions  Subscription[]
+  services       Service[]
+  tickets        Ticket[]
+  notifications  Notification[]
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  user       PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  userAgent  String?
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+}
+
+// SMS outbox — durable delivery audit trail for SMS.ir sends.
+// SECURITY: the OTP code/body is NEVER stored here — only delivery metadata
+// (purpose, mobile, provider, status, attempts, sanitized error).
+model SmsOutbox {
+  id             String    @id @default(cuid())
+  purpose        String // otp_login | otp_register | otp_recover | transactional_*
+  mobile         String
+  provider       String    @default("smsir")
+  status         String    @default("pending") // pending | sent | failed
+  attempts       Int       @default(0)
+  idempotencyKey String    @unique
+  messageId      String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@index([mobile, createdAt])
+  @@index([status, createdAt])
+}
+
+// Mobile OTP grants (login / registration verification / mobile recovery).
+// Same durable design as RecoveryGrant: CSPRNG 6-digit code stored as
+// SHA-256, short TTL, single-use, atomic attempt counting, per-mobile and
+// per-IP rate limits.
+model OtpGrant {
+  id         String    @id @default(cuid())
+  mobile     String
+  purpose    String // login | register | recover
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  ipHash     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([mobile, purpose, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// AbrIT Drive (Nextcloud) — unchanged, previously tested
+// ---------------------------------------------------------------------------
+
+model DriveAccount {
+  id            String      @id @default(cuid())
+  panelUserId   String      @unique
+  panelUser     PanelUser   @relation(fields: [panelUserId], references: [id], onDelete: Cascade)
+  ncUsername    String      @unique
+  ncEmail       String?
+  ncDisplayName String?
+  planCode      String      @default("trial")
+  quotaBytes    BigInt      @default(104857600)
+  status        String      @default("active") // active | disabled
+  provisionedAt DateTime    @default(now())
+  lastSyncedAt  DateTime?
+  events        DriveEvent[]
+}
+
+model DriveEvent {
+  id        String       @id @default(cuid())
+  accountId String
+  account   DriveAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type      String // provisioned | resumed | quota_changed | enabled | disabled | sync | error
+  detail    String?
+  createdAt DateTime     @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+// Durable password-recovery grants (previously tested).
+model RecoveryGrant {
+  id         String    @id @default(cuid())
+  userId     String
+  user       PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  ipHash     String?
+
+  @@index([userId, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Shopping cart (server-persisted; every price is recomputed server-side)
+// ---------------------------------------------------------------------------
+
+model CartItem {
+  id           String    @id @default(cuid())
+  userId       String
+  user         PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageCode  String
+  months       Int
+  users        Int
+  endpoints    Int
+  snapshotJson String // immutable quote snapshot captured at add-time (display only)
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Orders, payments, invoices, subscriptions, services
+// ---------------------------------------------------------------------------
+
+model Order {
+  id                 String    @id @default(cuid())
+  orderNumber        String    @unique
+  userId             String
+  user               PanelUser @relation(fields: [userId], references: [id])
+  status             String    @default("pending_payment") // pending_payment | paid | cancelled
+  itemsJson          String // [{input, breakdown, lineItems, snapshot}]
+  itemCount          Int       @default(1)
+  totalToman         Int
+  invoiceTitle       String
+  invoiceCompany     String?
+  createdAt          DateTime  @default(now())
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+
+  invoices      Invoice[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  ref             String    @unique
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id])
+  userId          String
+  user            PanelUser @relation(fields: [userId], references: [id])
+  gateway         String    @default("zarinpal") // zarinpal | zibal | mock (mellat never selectable)
+  amountToman     Int
+  status          String    @default("pending") // pending | succeeded | failed | cancelled
+  // Provider reference: ZarinPal authority / Zibal trackId. Unique so a
+  // repeated provider callback can never create or match two transactions.
+  gatewayRef      String?   @unique
+  // Server-issued secret for the internal dev/test gateway only (nullable —
+  // real gateways rely on provider-side verification instead).
+  verifyTokenHash String?
+  rawResultJson   String?
+  createdAt       DateTime  @default(now())
+  finalizedAt     DateTime?
+
+  @@index([orderId])
+  @@index([userId, createdAt])
+  @@index([gateway, status])
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id])
+  userId      String
+  user        PanelUser @relation(fields: [userId], references: [id])
+  amountToman Int
+  status      String    @default("issued") // issued | paid | void
+  title       String
+  company     String?
+  issuedAt    DateTime  @default(now())
+  paidAt      DateTime?
+
+  @@index([userId, issuedAt])
+}
+
+model Subscription {
+  id             String    @id @default(cuid())
+  userId         String
+  user           PanelUser @relation(fields: [userId], references: [id])
+  orderId        String?
+  order          Order?    @relation(fields: [orderId], references: [id])
+  packageCode    String
+  months         Int
+  users          Int
+  endpoints      Int
+  status         String    @default("active") // active | expired | cancelled
+  startsAt       DateTime  @default(now())
+  expiresAt      DateTime
+  priceTotalToman Int
+  entitlementJson String? // immutable purchased terms; null means legacy/unreconciled
+  createdAt      DateTime  @default(now())
+  services       Service[]
+
+  @@index([userId, expiresAt])
+}
+
+model Service {
+  id             String       @id @default(cuid())
+  userId         String
+  user           PanelUser    @relation(fields: [userId], references: [id])
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  type           String // managed_it | drive
+  title          String
+  status         String    @default("active") // active | pending | suspended | expired
+  activatedAt    DateTime?
+  expiresAt      DateTime?
+  metadataJson   String    @default("{}")
+  createdAt      DateTime  @default(now())
+
+  @@index([userId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Support tickets & notifications
+// ---------------------------------------------------------------------------
+
+model Ticket {
+  id         String          @id @default(cuid())
+  number     String          @unique
+  userId     String?
+  user       PanelUser?      @relation(fields: [userId], references: [id])
+  guestName  String?
+  guestEmail String?
+  subject    String
+  category   String          @default("other") // technical | billing | sales | drive | other
+  priority   String          @default("normal") // low | normal | high | urgent
+  status     String          @default("open") // open | answered | pending_customer | closed
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  messages   TicketMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([status, updatedAt])
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderRole String // customer | staff | system
+  senderName String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      PanelUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String // order | payment | drive | ticket | system | security
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Content management (CMS-lite powering the public site) & media
+// ---------------------------------------------------------------------------
+
+model ContentItem {
+  id          String    @id @default(cuid())
+  type        String // page | faq | service | article
+  slug        String    @unique
+  title       String
+  excerpt     String?
+  body        String    @default("")
+  status      String    @default("draft") // published | draft
+  sortOrder   Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type, status])
+}
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  name      String
+  path      String // /uploads/...
+  mime      String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail & settings
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorLabel String
+  action     String // e.g. auth.login, order.paid, content.published
+  entityType String
+  entityId   String?
+  metaJson   String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+// Current commercial catalog. Payload retains every documented package/policy
+// attribute; revision supports compare-and-swap administration updates.
+model PricingPlan {
+  code      String   @id
+  payload   Json
+  active    Boolean  @default(true)
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+model PricingContract {
+  months    Int      @id
+  payload   Json
+  active    Boolean  @default(true)
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt
+}

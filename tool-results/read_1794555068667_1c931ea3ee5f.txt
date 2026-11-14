@@ -1,0 +1,1251 @@
+     1→     1→# AbrIT Orchard Core — Full Repository Audit, OTP Repair, UI Bug Fixes, and Nextcloud User Provisioning
+     2→     2→
+     3→     3→You are working on the uploaded `Abrit-Orchard-master` repository.
+     4→     4→
+     5→     5→This is a strict engineering task. The repository contains existing implementation defects, incomplete integrations, UI inconsistencies, and documentation that sometimes contradicts the actual source code.
+     6→     6→
+     7→     7→Your objective is to audit the repository thoroughly, fix confirmed defects, implement the new AbrIT Drive integration according to the latest requirements, and provide verifiable evidence for every completed change.
+     8→     8→
+     9→     9→Do not assume previous reports are correct. Inspect the actual source code.
+    10→    10→
+    11→    11→Do not merely make the build pass. The real customer workflows must work correctly.
+    12→    12→
+    13→    13→---
+    14→    14→
+    15→    15→# 1. Mandatory Source Documents
+    16→    16→
+    17→    17→Read the complete contents of the following repository documents before changing code:
+    18→    18→
+    19→    19→- `docs/BASELINE.md`
+    20→    20→- `docs/COMMERCIAL_RULES.md`
+    21→    21→- `docs/INTEGRATION_CONTRACTS.md`
+    22→    22→- `docs/INTEGRATION_TEST_REPORT.md`
+    23→    23→- `docs/PAYMENT_ARCHITECTURE.md`
+    24→    24→- `docs/PRICING_ENGINE.md`
+    25→    25→- `docs/SECURITY.md`
+    26→    26→- `docs/SMS_IR.md`
+    27→    27→- `docs/SMS_QUEUE.md`
+    28→    28→- `docs/BACKGROUND_JOBS.md`
+    29→    29→- `docs/PHASE5_AUDIT.md`
+    30→    30→- `docs/PHASE5_GAP_AUDIT.md`
+    31→    31→- `docs/PHASE6_DESIGN_SYSTEM.md`
+    32→    32→- `docs/PHASE6_UI_ACCEPTANCE.md`
+    33→    33→- `docs/PHASE6_UI_TEST_REPORT.md`
+    34→    34→- `docs/UI_REDESIGN.md`
+    35→    35→- Provider-specific payment documentation.
+    36→    36→
+    37→    37→Also read the supplied business documents:
+    38→    38→
+    39→    39→1. `AbrIT_Orchard_Core_Client_Portal.pdf`
+    40→    40→2. `Abrit_Packages_1405_Final (1).docx`
+    41→    41→3. The latest AbrIT Drive integration guide supplied with this task.
+    42→    42→
+    43→    43→The supplied customer-portal PDF and final commercial document are business requirements, not optional suggestions.
+    44→    44→
+    45→    45→The latest Drive guide is a specific extension to the original Drive requirement.
+    46→    46→
+    47→    47→If the repository contains a newer explicitly approved business decision, identify the exact source and explain the conflict. Never silently invent a new business rule.
+    48→    48→
+    49→    49→---
+    50→    50→
+    51→    51→# 2. Audit Before Editing
+    52→    52→
+    53→    53→Before changing any file, create a detailed audit report.
+    54→    54→
+    55→    55→For every issue, classify it as one of:
+    56→    56→
+    57→    57→- Confirmed functional bug.
+    58→    58→- Confirmed security vulnerability.
+    59→    59→- Data consistency or concurrency issue.
+    60→    60→- Incorrect dependency injection/configuration.
+    61→    61→- UI/UX defect.
+    62→    62→- Accessibility defect.
+    63→    63→- Incomplete business requirement.
+    64→    64→- Documentation inconsistency.
+    65→    65→- External integration blocker.
+    66→    66→- Unverified concern.
+    67→    67→
+    68→    68→For each finding include:
+    69→    69→
+    70→    70→- Exact file path.
+    71→    71→- Method or component.
+    72→    72→- Relevant source lines.
+    73→    73→- Root cause.
+    74→    74→- Actual user-visible or operational consequence.
+    75→    75→- Severity: Critical, High, Medium, or Low.
+    76→    76→- Required correction.
+    77→    77→- Regression test.
+    78→    78→
+    79→    79→Do not patch speculative findings without verifying them.
+    80→    80→
+    81→    81→Do not count an incomplete business feature as a code bug, but do not ignore it.
+    82→    82→
+    83→    83→---
+    84→    84→
+    85→    85→# 3. Critical OTP and SMS Repairs
+    86→    86→
+    87→    87→This is the highest-priority part of the task.
+    88→    88→
+    89→    89→Inspect the complete flow:
+    90→    90→
+    91→    91→- `Mobile/MobileIdentityService.cs`
+    92→    92→- `Mobile/MobileIdentityController.cs`
+    93→    93→- `Mobile/SmsProviders.cs`
+    94→    94→- `Notifications/LegacySmsBridge.cs`
+    95→    95→- `Notifications/SmsProvidersV2.cs`
+    96→    96→- `Notifications/SmsContracts.cs`
+    97→    97→- `Notifications/SmsOutbox.cs`
+    98→    98→- `Notifications/PostgresSmsOutboxStore.cs`
+    99→    99→- `BackgroundJobs/SmsOutboxProcessor.cs`
+   100→   100→- `BackgroundJobs/AbrITBackgroundTasks.cs`
+   101→   101→- `Program.cs`
+   102→   102→- All relevant configuration and options classes.
+   103→   103→
+   104→   104→## 3.1 Fix the Mock provider selection defect
+   105→   105→
+   106→   106→The current bridge selects the mock provider before any other provider:
+   107→   107→
+   108→   108→`providers.FirstOrDefault(p => p.IsEnabled && p.Code == "mock")`
+   109→   109→
+   110→   110→The mock provider reports itself enabled unconditionally.
+   111→   111→
+   112→   112→This can cause OTP requests to report success without sending real SMS.
+   113→   113→
+   114→   114→Fix provider selection and environment behavior.
+   115→   115→
+   116→   116→Requirements:
+   117→   117→
+   118→   118→- Development may use an explicitly configured mock.
+   119→   119→- Production must never silently use a mock.
+   120→   120→- Mock behavior must be explicitly selected by environment/configuration.
+   121→   121→- An unavailable real provider must return a clear, safe failure.
+   122→   122→- A successful mock response must never be confused with a real delivery.
+   123→   123→- No provider should be considered production-ready without verified configuration and contract.
+   124→   124→
+   125→   125→Add tests proving that a Production configuration cannot select the mock provider.
+   126→   126→
+   127→   127→## 3.2 Remove the hardcoded OTP placeholder
+   128→   128→
+   129→   129→Inspect `SmsIrProvider`.
+   130→   130→
+   131→   131→The current implementation can use a hardcoded OTP value of `123456` when the request has no parameters.
+   132→   132→
+   133→   133→Remove this behavior completely.
+   134→   134→
+   135→   135→Never send:
+   136→   136→
+   137→   137→- A hardcoded OTP.
+   138→   138→- A placeholder OTP.
+   139→   139→- An empty OTP parameter.
+   140→   140→- A previous user's OTP.
+   141→   141→- An OTP recovered from an unrelated challenge.
+   142→   142→
+   143→   143→If the real OTP cannot be safely recovered, fail closed.
+   144→   144→
+   145→   145→## 3.3 Replace Base64 OTP storage with protected payloads
+   146→   146→
+   147→   147→Inspect `LegacySmsBridge`.
+   148→   148→
+   149→   149→Base64 is not encryption.
+   150→   150→
+   151→   151→Sensitive OTP payloads must be protected using ASP.NET Core Data Protection or an equally appropriate cryptographic mechanism.
+   152→   152→
+   153→   153→Requirements:
+   154→   154→
+   155→   155→- Do not store OTP plaintext.
+   156→   156→- Do not store Base64 as if it were encryption.
+   157→   157→- Use a stable and correctly scoped Data Protection purpose.
+   158→   158→- Ensure Data Protection keys persist across application restarts and instances.
+   159→   159→- Protect payloads only for the minimum required lifetime.
+   160→   160→- Purge sensitive payloads after terminal processing.
+   161→   161→- Never log OTP values.
+   162→   162→- Never return OTP values from production endpoints.
+   163→   163→
+   164→   164→## 3.4 Fix the Outbox processing lifecycle
+   165→   165→
+   166→   166→The current implementation must be reviewed end-to-end.
+   167→   167→
+   168→   168→The correct order is:
+   169→   169→
+   170→   170→1. Generate OTP.
+   171→   171→2. Create a protected dispatch payload.
+   172→   172→3. Persist the outbox record.
+   173→   173→4. Confirm persistence.
+   174→   174→5. Claim the message atomically.
+   175→   175→6. Recover and unprotect the payload.
+   176→   176→7. Validate expiry and purpose.
+   177→   177→8. Construct the provider request using the actual OTP.
+   178→   178→9. Dispatch through the configured provider.
+   179→   179→10. Persist the provider outcome.
+   180→   180→11. Purge the protected payload when appropriate.
+   181→   181→
+   182→   182→The current worker reconstructs a request with null parameters and does not recover the protected OTP.
+   183→   183→
+   184→   184→Fix this completely.
+   185→   185→
+   186→   186→Do not implement a workaround that simply stores the OTP in plaintext in `ParametersJson`.
+   187→   187→
+   188→   188→## 3.5 Make SMS dispatch durable
+   189→   189→
+   190→   190→The current `Program.cs` registers:
+   191→   191→
+   192→   192→- `InMemorySmsOutboxStore`
+   193→   193→- `InMemoryPaymentStore`
+   194→   194→
+   195→   195→These are not suitable as the active Production stores.
+   196→   196→
+   197→   197→Wire the correct durable PostgreSQL implementation for Production, with explicit environment-aware registrations.
+   198→   198→
+   199→   199→Requirements:
+   200→   200→
+   201→   201→- Atomic message claiming.
+   202→   202→- Unique tenant/idempotency constraints.
+   203→   203→- Lease recovery.
+   204→   204→- Expiry handling.
+   205→   205→- Retry with bounded exponential backoff and jitter.
+   206→   206→- Correct handling of ambiguous provider outcomes.
+   207→   207→- Dead-letter handling.
+   208→   208→- No blind retry after an ambiguous successful submission.
+   209→   209→- Correct provider selection.
+   210→   210→- Multi-instance safety.
+   211→   211→
+   212→   212→Use the in-memory implementation only in isolated Development/Test configurations.
+   213→   213→
+   214→   214→Do not claim exactly-once delivery to a third-party provider.
+   215→   215→
+   216→   216→## 3.6 Fix configuration binding
+   217→   217→
+   218→   218→Inspect `Infrastructure/Startup.cs` and `Program.cs`.
+   219→   219→
+   220→   220→Calling `AddOptions<T>()` alone does not bind configuration values.
+   221→   221→
+   222→   222→Explicitly bind and validate:
+   223→   223→
+   224→   224→- `NotificationOptions`
+   225→   225→- `SmsIrOptions`
+   226→   226→- `SmsQueueOptions`
+   227→   227→- `PaymentProviderOptions`
+   228→   228→- Any other required options.
+   229→   229→
+   230→   230→Use validation at startup for required Production configuration.
+   231→   231→
+   232→   232→Never commit API keys or provider credentials.
+   233→   233→
+   234→   234→Add tests proving that environment variables and configuration sections are correctly loaded.
+   235→   235→
+   236→   236→## 3.7 Verify SMS.ir integration
+   237→   237→
+   238→   238→The current provider implementation must not be assumed correct merely because an adapter exists.
+   239→   239→
+   240→   240→Verify the actual official API contract and the configured merchant account:
+   241→   241→
+   242→   242→- Authentication header.
+   243→   243→- Endpoint.
+   244→   244→- Template ID.
+   245→   245→- Parameter names.
+   246→   246→- Request schema.
+   247→   247→- Response schema.
+   248→   248→- Error mapping.
+   249→   249→- Timeout behavior.
+   250→   250→- Provider message identifier.
+   251→   251→- Any available delivery status API.
+   252→   252→
+   253→   253→Do not invent API details.
+   254→   254→
+   255→   255→If the official contract or account credentials are unavailable, keep live delivery disabled and report the exact missing requirements.
+   256→   256→
+   257→   257→Never send real SMS messages during automated tests.
+   258→   258→
+   259→   259→## 3.8 Fix OTP challenge persistence
+   260→   260→
+   261→   261→The current OTP implementation uses `IMemoryCache`.
+   262→   262→
+   263→   263→There is no durable PostgreSQL OTP challenge store in the current repository.
+   264→   264→
+   265→   265→Implement a persistent challenge store suitable for Production and multiple application instances.
+   266→   266→
+   267→   267→Requirements:
+   268→   268→
+   269→   269→- Challenge ID generated using a cryptographically secure random generator.
+   270→   270→- OTP generated using a cryptographically secure random generator.
+   271→   271→- Expiration enforced at the database and application boundaries.
+   272→   272→- Single-use challenge consumption.
+   273→   273→- Atomic attempt counting.
+   274→   274→- Maximum attempt enforcement.
+   275→   275→- Purpose binding.
+   276→   276→- User/account binding.
+   277→   277→- Mobile-number binding.
+   278→   278→- Replay protection.
+   279→   279→- Multi-instance consistency.
+   280→   280→- Restart recovery.
+   281→   281→- Expired challenge cleanup.
+   282→   282→- Safe retention and deletion.
+   283→   283→
+   284→   284→Use a keyed hash or appropriately protected representation for low-entropy OTP values. Do not rely on a plain salted SHA-256 hash as the only protection against offline guessing after a database compromise.
+   285→   285→
+   286→   286→Add versioned PostgreSQL migrations.
+   287→   287→
+   288→   288→Do not execute migrations against a real production database.
+   289→   289→
+   290→   290→## 3.9 Fix OTP rate limiting
+   291→   291→
+   292→   292→Current rate limits are process-local and registration limits are partly keyed by username rather than mobile number.
+   293→   293→
+   294→   294→Implement shared, atomic rate limiting for:
+   295→   295→
+   296→   296→- Client IP.
+   297→   297→- Normalized Iranian mobile number.
+   298→   298→- Account ID or normalized username.
+   299→   299→- OTP purpose.
+   300→   300→- Resend operation.
+   301→   301→- Verification attempts.
+   302→   302→
+   303→   303→Requirements:
+   304→   304→
+   305→   305→- Use a shared persistent/distributed mechanism suitable for multiple instances.
+   306→   306→- Apply cooldowns.
+   307→   307→- Prevent repeated SMS abuse by changing usernames.
+   308→   308→- Ensure unknown accounts and known accounts have indistinguishable public recovery responses.
+   309→   309→- Do not trust arbitrary forwarded IP headers.
+   310→   310→- Correctly configure trusted reverse proxies.
+   311→   311→- Do not make every user appear to have the same IP behind a proxy.
+   312→   312→
+   313→   313→Add concurrency and multi-instance tests.
+   314→   314→
+   315→   315→## 3.10 Fix mobile-number uniqueness
+   316→   316→
+   317→   317→The development-only index creation must not be the only protection.
+   318→   318→
+   319→   319→Implement a proper production migration for verified mobile uniqueness.
+   320→   320→
+   321→   321→Requirements:
+   322→   322→
+   323→   323→- Database-enforced uniqueness.
+   324→   324→- Correct normalization.
+   325→   325→- Concurrency-safe registration.
+   326→   326→- Concurrency-safe mobile verification.
+   327→   327→- Safe handling of existing duplicate records.
+   328→   328→- No silent deletion or modification of customer accounts.
+   329→   329→
+   330→   330→Do not rely only on application-level scans.
+   331→   331→
+   332→   332→## 3.11 Fix OTP localization and UX
+   333→   333→
+   334→   334→Support Persian, Arabic, and ASCII digits for:
+   335→   335→
+   336→   336→- OTP input.
+   337→   337→- Iranian mobile input.
+   338→   338→- Relevant numeric form fields.
+   339→   339→
+   340→   340→Normalize the values on the server.
+   341→   341→
+   342→   342→Implement and test the following UI states:
+   343→   343→
+   344→   344→- OTP sent.
+   345→   345→- OTP sending failed.
+   346→   346→- OTP expired.
+   347→   347→- Invalid OTP.
+   348→   348→- Too many attempts.
+   349→   349→- Resend cooldown.
+   350→   350→- Resend success.
+   351→   351→- Resend failure.
+   352→   352→- Registration completed.
+   353→   353→- Mobile verification completed.
+   354→   354→- Recovery completed.
+   355→   355→
+   356→   356→The UI must not falsely claim that a message was sent when dispatch failed.
+   357→   357→
+   358→   358→Do not reveal account existence.
+   359→   359→
+   360→   360→---
+   361→   361→
+   362→   362→# 4. Password Recovery Repairs
+   363→   363→
+   364→   364→Inspect the complete password recovery flow.
+   365→   365→
+   366→   366→The current implementation stores reset grants and recovery versions in `IMemoryCache`.
+   367→   367→
+   368→   368→Replace this with a durable, atomic implementation.
+   369→   369→
+   370→   370→Requirements:
+   371→   371→
+   372→   372→- Durable recovery grants.
+   373→   373→- One-time use.
+   374→   374→- Short expiration.
+   375→   375→- User binding.
+   376→   376→- Purpose binding.
+   377→   377→- Token hashing/protection.
+   378→   378→- Replay protection.
+   379→   379→- Concurrency safety.
+   380→   380→- Multi-instance compatibility.
+   381→   381→- Restart recovery.
+   382→   382→
+   383→   383→Do not consume a grant irreversibly before validating the request and safely coordinating the password-reset operation.
+   384→   384→
+   385→   385→Handle invalid passwords and transient Identity failures without leaving the user in an unrecoverable state.
+   386→   386→
+   387→   387→Add tests for:
+   388→   388→
+   389→   389→- Expired grants.
+   390→   390→- Invalid tokens.
+   391→   391→- Replayed grants.
+   392→   392→- Concurrent reset requests.
+   393→   393→- Password-policy failures.
+   394→   394→- Restart during recovery.
+   395→   395→- User deletion or account changes.
+   396→   396→- Successful recovery.
+   397→   397→
+   398→   398→Never expose account existence in public recovery responses.
+   399→   399→
+   400→   400→---
+   401→   401→
+   402→   402→# 5. AbrIT Drive — Replace Folder Provisioning With Nextcloud User Provisioning
+   403→   403→
+   404→   404→The current implementation in:
+   405→   405→
+   406→   406→- `Drive/AbrITDriveOptions.cs`
+   407→   407→- `Drive/DriveController.cs`
+   408→   408→- `Drive/DriveStatusService.cs`
+   409→   409→
+   410→   410→uses one technical Nextcloud account and one WebDAV folder per Orchard user.
+   411→   411→
+   412→   412→This does not satisfy the new Drive integration guide.
+   413→   413→
+   414→   414→A folder under one shared technical account is not equivalent to a dedicated Nextcloud user with an independent quota.
+   415→   415→
+   416→   416→Implement the Nextcloud User Provisioning API.
+   417→   417→
+   418→   418→## 5.1 Official API contract
+   419→   419→
+   420→   420→Use the official Nextcloud documentation:
+   421→   421→
+   422→   422→`https://docs.nextcloud.com/server/stable/admin_manual/configuration_user/user_provisioning_api.html`
+   423→   423→
+   424→   424→Relevant base path:
+   425→   425→
+   426→   426→`/ocs/v1.php/cloud`
+   427→   427→
+   428→   428→Required request header:
+   429→   429→
+   430→   430→`OCS-APIRequest: true`
+   431→   431→
+   432→   432→Use an appropriate `Accept: application/json` header and correctly encode POST/PUT request bodies as `application/x-www-form-urlencoded` where required by the official API.
+   433→   433→
+   434→   434→Do not assume WebDAV is a substitute for the Provisioning API.
+   435→   435→
+   436→   436→## 5.2 Required operations
+   437→   437→
+   438→   438→Implement a dedicated server-side Nextcloud client abstraction supporting:
+   439→   439→
+   440→   440→### Create user
+   441→   441→
+   442→   442→`POST /ocs/v1.php/cloud/users`
+   443→   443→
+   444→   444→Support:
+   445→   445→
+   446→   446→- `userid`
+   447→   447→- `password`
+   448→   448→- `displayName`
+   449→   449→- `email`
+   450→   450→- `quota`
+   451→   451→
+   452→   452→### Retrieve user
+   453→   453→
+   454→   454→`GET /ocs/v1.php/cloud/users/{userid}`
+   455→   455→
+   456→   456→Retrieve:
+   457→   457→
+   458→   458→- User ID.
+   459→   459→- Enabled state.
+   460→   460→- Email.
+   461→   461→- Display name.
+   462→   462→- Quota.
+   463→   463→- Available quota data where supported.
+   464→   464→- Used storage.
+   465→   465→- Other necessary account status fields.
+   466→   466→
+   467→   467→### Update quota
+   468→   468→
+   469→   469→`PUT /ocs/v1.php/cloud/users/{userid}`
+   470→   470→
+   471→   471→Use the documented `key=quota` and `value=...` fields.
+   472→   472→
+   473→   473→### Enable user
+   474→   474→
+   475→   475→`PUT /ocs/v1.php/cloud/users/{userid}/enable`
+   476→   476→
+   477→   477→### Disable user
+   478→   478→
+   479→   479→`PUT /ocs/v1.php/cloud/users/{userid}/disable`
+   480→   480→
+   481→   481→Handle all OCS meta status codes, not just HTTP status codes.
+   482→   482→
+   483→   483→In particular, handle duplicate usernames (OCS status code 102) safely.
+   484→   484→
+   485→   485→Do not treat an HTTP 200 response as proof that an OCS operation succeeded. Parse and validate the OCS response metadata.
+   486→   486→
+   487→   487→## 5.3 Dedicated account identity and persistence
+   488→   488→
+   489→   489→Create a durable mapping between the Orchard customer and the Nextcloud user.
+   490→   490→
+   491→   491→Persist at least:
+   492→   492→
+   493→   493→- Orchard user ID.
+   494→   494→- Nextcloud user ID.
+   495→   495→- Provisioning status.
+   496→   496→- Assigned quota.
+   497→   497→- Last known used storage where appropriate.
+   498→   498→- Last successful synchronization.
+   499→   499→- Last error category.
+   500→   500→- Retry/operation metadata.
+   501→   501→- Creation timestamp.
+   502→   502→- Update timestamp.
+   503→   503→
+   504→   504→Add database constraints ensuring one customer cannot accidentally create multiple unrelated Nextcloud accounts.
+   505→   505→
+   506→   506→Use versioned migrations.
+   507→   507→
+   508→   508→Never store Nextcloud passwords in plaintext.
+   509→   509→
+   510→   510→Do not expose administrative Nextcloud credentials to customer-facing code.
+   511→   511→
+   512→   512→## 5.4 Credential design
+   513→   513→
+   514→   514→The Drive guide requires a username and password for the Nextcloud account.
+   515→   515→
+   516→   516→Design a safe credential flow.
+   517→   517→
+   518→   518→Requirements:
+   519→   519→
+   520→   520→- Do not automatically reuse the Orchard portal password without explicit product approval.
+   521→   521→- Do not store the Nextcloud password in plaintext.
+   522→   522→- Never log passwords.
+   523→   523→- Never expose the administrator's Nextcloud credentials.
+   524→   524→- Never return an administrator token or Basic Authorization header.
+   525→   525→- Provide a safe customer credential setup or initial credential delivery mechanism.
+   526→   526→- Do not display the password again after its permitted one-time display.
+   527→   527→- If password recovery or password changes are required, use a dedicated secure flow.
+   528→   528→
+   529→   529→If the business requirement does not specify whether the customer chooses the Drive password or receives an initial generated password, identify this as a product decision. Do not silently choose an unsafe implementation.
+   530→   530→
+   531→   531→## 5.5 Provisioning idempotency
+   532→   532→
+   533→   533→Repeated requests must not create duplicate Nextcloud users.
+   534→   534→
+   535→   535→Implement an idempotent workflow:
+   536→   536→
+   537→   537→1. Load the Orchard customer.
+   538→   538→2. Load the persisted Nextcloud mapping.
+   539→   539→3. Verify that the requested account belongs to that customer.
+   540→   540→4. If an account is already mapped, retrieve it from Nextcloud.
+   541→   541→5. Reconcile its quota and enabled state when appropriate.
+   542→   542→6. If no mapping exists, create the account.
+   543→   543→7. Persist the mapping only after validating the external response.
+   544→   544→8. If a duplicate username is reported without a trusted mapping, do not adopt the existing account automatically.
+   545→   545→9. Handle network timeouts and ambiguous responses through reconciliation.
+   546→   546→10. Make repeated provisioning requests safe.
+   547→   547→
+   548→   548→Do not create duplicate accounts when the external request succeeds but the local database update fails.
+   549→   549→
+   550→   550→## 5.6 Quota management
+   551→   551→
+   552→   552→The initial acceptance test uses 100 MB.
+   553→   553→
+   554→   554→Implement a proper quota model.
+   555→   555→
+   556→   556→Requirements:
+   557→   557→
+   558→   558→- Store the quota as an explicit value.
+   559→   559→- Map plan quota values to valid Nextcloud quota strings.
+   560→   560→- Support quota changes after plan changes.
+   561→   561→- Verify the quota after updates.
+   562→   562→- Do not report success until the external account reflects the expected quota.
+   563→   563→- Correctly handle unlimited quota and invalid quota values.
+   564→   564→- Never infer a customer's personal quota from the technical account's shared storage.
+   565→   565→
+   566→   566→For the initial test, the customer must receive a dedicated Nextcloud account with a verified 100 MB quota.
+   567→   567→
+   568→   568→## 5.7 Account status and storage usage
+   569→   569→
+   570→   570→Retrieve the real Nextcloud account status.
+   571→   571→
+   572→   572→The customer portal must show:
+   573→   573→
+   574→   574→- Account state.
+   575→   575→- Drive URL.
+   576→   576→- Nextcloud username or account identifier.
+   577→   577→- Assigned quota.
+   578→   578→- Used storage.
+   579→   579→- Available storage where supported.
+   580→   580→- Last synchronization status.
+   581→   581→- Safe error information when unavailable.
+   582→   582→
+   583→   583→Do not fabricate Ready status.
+   584→   584→
+   585→   585→A malformed OCS response or missing quota data must not be interpreted as successful provisioning.
+   586→   586→
+   587→   587→## 5.8 Drive access link
+   588→   588→
+   589→   589→The Drive service URL is:
+   590→   590→
+   591→   591→`https://drive.abrit.cloud`
+   592→   592→
+   593→   593→Display a real external link after the account is ready.
+   594→   594→
+   595→   595→SSO is explicitly not required in this phase.
+   596→   596→
+   597→   597→Do not implement automatic login or credential forwarding as a substitute for SSO.
+   598→   598→
+   599→   599→## 5.9 Provisioning trigger — Business rule reconciliation
+   600→   600→
+   601→   601→The original portal PDF describes Drive creation after confirmed payment.
+   602→   602→
+   603→   603→The newer Drive guide allows account creation after registration or Drive service activation.
+   604→   604→
+   605→   605→These requirements must be reconciled.
+   606→   606→
+   607→   607→Model provisioning eligibility explicitly.
+   608→   608→
+   609→   609→Do not automatically grant a paid package entitlement to every registered user.
+   610→   610→
+   611→   611→If the newest approved decision requires Drive creation immediately after registration, implement that behavior explicitly and document it.
+   612→   612→
+   613→   613→Otherwise require an eligible Drive activation or paid entitlement.
+   614→   614→
+   615→   615→Do not silently change the original purchase/entitlement rules.
+   616→   616→
+   617→   617→## 5.10 Legacy implementation investigation
+   618→   618→
+   619→   619→The new guide asks to inspect the previous implementation in `abrit-website` or the old local website project.
+   620→   620→
+   621→   621→If the repository is accessible through an already authorized GitHub connection, inspect it.
+   622→   622→
+   623→   623→If it is not accessible, report that limitation.
+   624→   624→
+   625→   625→Do not invent the previous implementation or assume that its code matches the current WebDAV approach.
+   626→   626→
+   627→   627→Reuse only verified and secure components.
+   628→   628→
+   629→   629→## 5.11 Drive UI
+   630→   630→
+   631→   631→Replace the current folder activation UI with the new account-provisioning UI.
+   632→   632→
+   633→   633→Required states:
+   634→   634→
+   635→   635→- Not configured.
+   636→   636→- Not activated.
+   637→   637→- Activation form.
+   638→   638→- Creating account.
+   639→   639→- Ready.
+   640→   640→- Existing account.
+   641→   641→- Username conflict.
+   642→   642→- Quota update pending.
+   643→   643→- Quota updated.
+   644→   644→- Temporarily unreachable.
+   645→   645→- Permanent provider error.
+   646→   646→- Retry available.
+   647→   647→- Disabled account.
+   648→   648→
+   649→   649→Show the real Drive link and customer account information only when appropriate.
+   650→   650→
+   651→   651→Do not display secrets.
+   652→   652→
+   653→   653→---
+   654→   654→
+   655→   655→# 6. Commercial Packages and Pricing
+   656→   656→
+   657→   657→Use `Abrit_Packages_1405_Final (1).docx` as the final commercial reference unless a newer approved decision is found.
+   658→   658→
+   659→   659→The final document defines:
+   660→   660→
+   661→   661→| Package | Monthly Price | Users | Endpoints | Extra User | Extra Endpoint | SLA |
+   662→   662→|---|---:|---:|---:|---:|---:|---|
+   663→   663→| Essential | 12,950,000 | 5 | 6 | 1,590,000 | 790,000 | 8 business hours |
+   664→   664→| Standard | 19,500,000 | 10 | 12 | 1,990,000 | 990,000 | 4 business hours |
+   665→   665→| Professional | 32,900,000 | 15 | 20 | 2,690,000 | 1,290,000 | 2 business hours |
+   666→   666→| Business | 52,900,000 | 25 | 35 | 3,790,000 | 1,790,000 | 1 business hour |
+   667→   667→| Enterprise | 79,900,000 | 40 | 60 | 4,990,000 | 2,490,000 | P1: 30 minutes |
+   668→   668→
+   669→   669→All monetary values are in Toman.
+   670→   670→
+   671→   671→Contract durations:
+   672→   672→
+   673→   673→- 3 months: 3% discount.
+   674→   674→- 6 months: 5% discount.
+   675→   675→- 12 months: 8% discount.
+   676→   676→
+   677→   677→Onboarding:
+   678→   678→
+   679→   679→- 3 months: 50% of one base monthly package price.
+   680→   680→- 6 months: 25% of one base monthly package price.
+   681→   681→- 12 months: free standard onboarding.
+   682→   682→
+   683→   683→The final model must represent relevant capacity and service information:
+   684→   684→
+   685→   685→- Users.
+   686→   686→- Endpoints.
+   687→   687→- Servers/VMs.
+   688→   688→- Sites/Branches.
+   689→   689→- Managed network devices.
+   690→   690→- Cloud storage.
+   691→   691→- Included services.
+   692→   692→- Additional user fees.
+   693→   693→- Additional endpoint fees.
+   694→   694→- SLA.
+   695→   695→- Contract policy.
+   696→   696→- Onboarding policy.
+   697→   697→- Package-specific add-ons.
+   698→   698→
+   699→   699→Do not invent prices for services that the document leaves as separately quoted or custom.
+   700→   700→
+   701→   701→Do not allow a one-month contract unless a newer approved business decision explicitly permits it.
+   702→   702→
+   703→   703→The current code contains mismatched prices, user counts, SLA values, missing additional-user fees, missing endpoint capacity, and no 12-month contract.
+   704→   704→
+   705→   705→Fix all of these consistently.
+   706→   706→
+   707→   707→The same authoritative commercial data must be used by:
+   708→   708→
+   709→   709→- Commercial defaults.
+   710→   710→- Admin management.
+   711→   711→- Pricing engine.
+   712→   712→- Pricing API.
+   713→   713→- Customer catalog.
+   714→   714→- Comparison table.
+   715→   715→- Contract selector.
+   716→   716→- Quote breakdown.
+   717→   717→- Order snapshot.
+   718→   718→- Drive quota mapping.
+   719→   719→
+   720→   720→Do not duplicate commercial values in JavaScript.
+   721→   721→
+   722→   722→## 6.1 Pricing validation
+   723→   723→
+   724→   724→Test:
+   725→   725→
+   726→   726→- Every package.
+   727→   727→- Every contract duration.
+   728→   728→- Additional users.
+   729→   729→- Additional endpoints.
+   730→   730→- Onboarding.
+   731→   731→- Discount calculations.
+   732→   732→- Invalid package.
+   733→   733→- Invalid capacity.
+   734→   734→- Rounding.
+   735→   735→- Toman/Rial conversion.
+   736→   736→- Snapshot immutability.
+   737→   737→
+   738→   738→Keep quote completeness separate from checkout authorization.
+   739→   739→
+   740→   740→Real checkout must remain disabled until the secure order/payment lifecycle is complete.
+   741→   741→
+   742→   742→---
+   743→   743→
+   744→   744→# 7. Payment and Persistence
+   745→   745→
+   746→   746→Inspect:
+   747→   747→
+   748→   748→- `PaymentOrchestrator.cs`
+   749→   749→- `PostgresPaymentStore.cs`
+   750→   750→- `PaymentStore.cs`
+   751→   751→- `PaymentVerificationService`
+   752→   752→- `PaymentReconciliationService`
+   753→   753→- `PaymentCallbackController.cs`
+   754→   754→- `PaymentOptions.cs`
+   755→   755→- `Program.cs`
+   756→   756→
+   757→   757→Fix:
+   758→   758→
+   759→   759→- InMemory Production store registration.
+   760→   760→- Missing or incomplete PostgreSQL wiring.
+   761→   761→- Configuration binding.
+   762→   762→- Schema/migration management.
+   763→   763→- Atomic idempotency.
+   764→   764→- Duplicate callback handling.
+   765→   765→- Concurrent payment attempts.
+   766→   766→- Order ownership validation.
+   767→   767→- Amount/currency validation.
+   768→   768→- Payment state transitions.
+   769→   769→- Reconciliation.
+   770→   770→- Audit records.
+   771→   771→
+   772→   772→Do not enable real checkout until the order lifecycle, payment verification, customer authorization, and provisioning entitlement checks are complete.
+   773→   773→
+   774→   774→Do not contact real payment providers during tests.
+   775→   775→
+   776→   776→Do not execute migrations against production.
+   777→   777→
+   778→   778→---
+   779→   779→
+   780→   780→# 8. UI and UX — Full Route-by-Route Review
+   781→   781→
+   782→   782→The UI is part of the deliverable. Do not limit the task to backend repairs.
+   783→   783→
+   784→   784→Inspect all customer-facing and admin-facing routes.
+   785→   785→
+   786→   786→At minimum:
+   787→   787→
+   788→   788→- `/`
+   789→   789→- `/services`
+   790→   790→- `/services/{id}`
+   791→   791→- `/Login`
+   792→   792→- `/customer/register`
+   793→   793→- `/customer/register/verify`
+   794→   794→- `/customer/mobile`
+   795→   795→- `/customer/mobile/verify`
+   796→   796→- `/customer/recover`
+   797→   797→- `/customer/recover/verify`
+   798→   798→- `/customer/recover/reset`
+   799→   799→- `/dashboard`
+   800→   800→- `/account`
+   801→   801→- `/drive`
+   802→   802→- All payment/order routes that exist.
+   803→   803→- All custom admin routes.
+   804→   804→- Native Orchard login, recovery, registration, and account pages.
+   805→   805→
+   806→   806→## 8.1 Login and authentication UI
+   807→   807→
+   808→   808→Verify that the real login page uses the AbrIT Persian RTL theme.
+   809→   809→
+   810→   810→The existence of `Layout-Login.liquid` is not proof that Orchard is using it.
+   811→   811→
+   812→   812→Verify the actual `UseSiteTheme` settings in the target tenant.
+   813→   813→
+   814→   814→Fix the English default Orchard login screen if it is still active.
+   815→   815→
+   816→   816→Preserve native Orchard authentication behavior, antiforgery, return URLs, and security checks.
+   817→   817→
+   818→   818→## 8.2 Responsive layout
+   819→   819→
+   820→   820→Test at:
+   821→   821→
+   822→   822→- 360px.
+   823→   823→- 390px.
+   824→   824→- 768px.
+   825→   825→- 1024px.
+   826→   826→- 1440px.
+   827→   827→- 1920px.
+   828→   828→
+   829→   829→Review:
+   830→   830→
+   831→   831→- Horizontal overflow.
+   832→   832→- Clipped buttons.
+   833→   833→- Card widths.
+   834→   834→- Table scrolling.
+   835→   835→- Sidebar behavior.
+   836→   836→- Mobile navigation.
+   837→   837→- Touch targets.
+   838→   838→- Form spacing.
+   839→   839→- Typography.
+   840→   840→- Persian/English mixed text.
+   841→   841→- Number and currency alignment.
+   842→   842→- Long usernames and emails.
+   843→   843→- Error messages.
+   844→   844→- Empty states.
+   845→   845→- Loading states.
+   846→   846→
+   847→   847→## 8.3 Accessibility
+   848→   848→
+   849→   849→Review:
+   850→   850→
+   851→   851→- Semantic HTML.
+   852→   852→- Heading hierarchy.
+   853→   853→- Keyboard navigation.
+   854→   854→- Focus visibility.
+   855→   855→- Form labels.
+   856→   856→- Error association.
+   857→   857→- ARIA state.
+   858→   858→- Contrast.
+   859→   859→- Screen reader announcements.
+   860→   860→- Slider keyboard behavior.
+   861→   861→- Nested interactive elements.
+   862→   862→
+   863→   863→Fix the current plan-card structure where an element with `role="button"` contains another button.
+   864→   864→
+   865→   865→## 8.4 Pricing JavaScript
+   866→   866→
+   867→   867→Review the complete `PricingScript()`.
+   868→   868→
+   869→   869→Fix:
+   870→   870→
+   871→   871→- One-month selector/backend mismatch.
+   872→   872→- Missing 12-month support.
+   873→   873→- Invalid numeric input handling.
+   874→   874→- Stale price display.
+   875→   875→- Race conditions in concurrent preview requests.
+   876→   876→- Error presentation.
+   877→   877→- Loading states.
+   878→   878→- XSS risk from unescaped API values inserted using `innerHTML`.
+   879→   879→- Accessibility of the slider and contract selector.
+   880→   880→
+   881→   881→Prefer safe DOM construction and `textContent` over direct HTML insertion.
+   882→   882→
+   883→   883→## 8.5 Dashboard semantics
+   884→   884→
+   885→   885→Do not calculate actual active services solely from order status.
+   886→   886→
+   887→   887→Keep distinct models for:
+   888→   888→
+   889→   889→- Order status.
+   890→   890→- Payment status.
+   891→   891→- Provisioning status.
+   892→   892→- Service status.
+   893→   893→- Renewal status.
+   894→   894→
+   895→   895→Do not show pending or completed orders as if they were active services.
+   896→   896→
+   897→   897→Do not fabricate service activation data.
+   898→   898→
+   899→   899→## 8.6 UI visual evidence
+   900→   900→
+   901→   901→The repository contains older screenshots and contradictory UI reports.
+   902→   902→
+   903→   903→Do not treat Phase 5 screenshots as proof of Phase 6 acceptance.
+   904→   904→
+   905→   905→Capture fresh screenshots from the actual current implementation.
+   906→   906→
+   907→   907→Capture:
+   908→   908→
+   909→   909→- Anonymous pages.
+   910→   910→- Authenticated customer pages.
+   911→   911→- OTP states.
+   912→   912→- Recovery states.
+   913→   913→- Drive provisioning states.
+   914→   914→- Admin pages.
+   915→   915→- Empty states.
+   916→   916→- Error states.
+   917→   917→- Mobile states.
+   918→   918→
+   919→   919→Do not claim visual verification unless the browser actually rendered the page and the screenshots were inspected.
+   920→   920→
+   921→   921→---
+   922→   922→
+   923→   923→# 9. Security Review
+   924→   924→
+   925→   925→Review the full application for:
+   926→   926→
+   927→   927→- IDOR.
+   928→   928→- Broken object-level authorization.
+   929→   929→- Missing ownership checks.
+   930→   930→- CSRF.
+   931→   931→- Open redirects.
+   932→   932→- Stored XSS.
+   933→   933→- Reflected XSS.
+   934→   934→- HTML injection.
+   935→   935→- Mass assignment.
+   936→   936→- Unsafe external URL construction.
+   937→   937→- SSRF through configuration.
+   938→   938→- Credential leakage.
+   939→   939→- Sensitive logging.
+   940→   940→- OTP enumeration.
+   941→   941→- OTP replay.
+   942→   942→- Rate-limit bypass.
+   943→   943→- Weak session behavior.
+   944→   944→- Incorrect tenant isolation.
+   945→   945→- Missing database constraints.
+   946→   946→- Concurrency races.
+   947→   947→- Unsafe background processing.
+   948→   948→
+   949→   949→Preserve existing Orchard authorization and antiforgery protections.
+   950→   950→
+   951→   951→Do not weaken security to make a workflow pass.
+   952→   952→
+   953→   953→Do not trust unvalidated customer-provided Nextcloud usernames, IDs, or URLs.
+   954→   954→
+   955→   955→---
+   956→   956→
+   957→   957→# 10. Documentation Reconciliation
+   958→   958→
+   959→   959→Correct the documentation so it matches the real implementation.
+   960→   960→
+   961→   961→In particular, reconcile:
+   962→   962→
+   963→   963→- `SMS_IR.md` versus the active `LegacySmsBridge` registration.
+   964→   964→- `SMS_QUEUE.md` versus actual DI registrations.
+   965→   965→- `INTEGRATION_TEST_REPORT.md` versus tests that were truly executed.
+   966→   966→- `PHASE6_UI_TEST_REPORT.md` versus available screenshot evidence.
+   967→   967→- `PHASE6_UI_ACCEPTANCE.md` versus the actual rendered UI.
+   968→   968→- `PRICING_ENGINE.md` versus supported contract durations.
+   969→   969→- Old WebDAV Drive documentation versus the new Nextcloud User Provisioning API implementation.
+   970→   970→
+   971→   971→Do not delete historical audit information merely to hide previous failures.
+   972→   972→
+   973→   973→Clearly label historical results and current verification status.
+   974→   974→
+   975→   975→Add a new Drive integration document explaining:
+   976→   976→
+   977→   977→- API endpoints.
+   978→   978→- Required headers.
+   979→   979→- Configuration.
+   980→   980→- Credential handling.
+   981→   981→- Quota mapping.
+   982→   982→- Provisioning lifecycle.
+   983→   983→- Idempotency.
+   984→   984→- Error handling.
+   985→   985→- Database schema.
+   986→   986→- Test procedure.
+   987→   987→- Rollback/reconciliation behavior.
+   988→   988→
+   989→   989→---
+   990→   990→
+   991→   991→# 11. Required Automated Tests
+   992→   992→
+   993→   993→Add or improve tests in the following areas.
+   994→   994→
+   995→   995→## OTP unit tests
+   996→   996→
+   997→   997→- Valid OTP.
+   998→   998→- Invalid OTP.
+   999→   999→- Expired OTP.
+  1000→  1000→- Single-use behavior.
+  1001→  1001→- Attempt limits.
+  1002→  1002→- Purpose mismatch.
+  1003→  1003→- User mismatch.
+  1004→  1004→- Persian digits.
+  1005→  1005→- Arabic digits.
+  1006→  1006→- Rate limiting.
+  1007→  1007→- Resend cooldown.
+  1008→  1008→- Duplicate mobile.
+  1009→  1009→- Recovery token.
+  1010→  1010→- Invalid password reset.
+  1011→  1011→- Provider failure.
+  1012→  1012→
+  1013→  1013→## SMS provider tests
+  1014→  1014→
+  1015→  1015→- Mock selected only in allowed environments.
+  1016→  1016→- Real provider never silently replaced by Mock.
+  1017→  1017→- Correct OTP parameter.
+  1018→  1018→- No hardcoded placeholder.
+  1019→  1019→- Protected payload recovery.
+  1020→  1020→- Durable outbox-first behavior.
+  1021→  1021→- Retry.
+  1022→  1022→- Expiry.
+  1023→  1023→- Ambiguous submission.
+  1024→  1024→- Dead-letter behavior.
+  1025→  1025→- Provider errors.
+  1026→  1026→- Configuration validation.
+  1027→  1027→
+  1028→  1028→## PostgreSQL integration tests
+  1029→  1029→
+  1030→  1030→Use a disposable PostgreSQL database, preferably Testcontainers.
+  1031→  1031→
+  1032→  1032→Test:
+  1033→  1033→
+  1034→  1034→- OTP persistence.
+  1035→  1035→- OTP atomic consumption.
+  1036→  1036→- Rate limits.
+  1037→  1037→- Mobile uniqueness.
+  1038→  1038→- Recovery grants.
+  1039→  1039→- SMS Outbox.
+  1040→  1040→- Payment attempts.
+  1041→  1041→- Idempotency.
+  1042→  1042→- Provisioning records.
+  1043→  1043→- Concurrent requests.
+  1044→  1044→- Restart recovery.
+  1045→  1045→
+  1046→  1046→Do not substitute InMemory stores for PostgreSQL integration tests.
+  1047→  1047→
+  1048→  1048→## Nextcloud integration tests
+  1049→  1049→
+  1050→  1050→Use a dedicated isolated Nextcloud test instance if available, or a faithful OCS API test server.
+  1051→  1051→
+  1052→  1052→Test:
+  1053→  1053→
+  1054→  1054→- Create user.
+  1055→  1055→- Duplicate username.
+  1056→  1056→- Get user.
+  1057→  1057→- Assign 100 MB quota.
+  1058→  1058→- Read quota.
+  1059→  1059→- Update quota.
+  1060→  1060→- Enable user.
+  1061→  1061→- Disable user.
+  1062→  1062→- Invalid credentials.
+  1063→  1063→- Invalid OCS response.
+  1064→  1064→- Network timeout.
+  1065→  1065→- Ambiguous create response.
+  1066→  1066→- Retry.
+  1067→  1067→- Duplicate provisioning.
+  1068→  1068→- Mapping persistence.
+  1069→  1069→- Customer ownership.
+  1070→  1070→- No credential leakage.
+  1071→  1071→
+  1072→  1072→Never create accounts on the real customer Nextcloud instance during automated tests.
+  1073→  1073→
+  1074→  1074→## Browser E2E tests
+  1075→  1075→
+  1076→  1076→Use Playwright or an equivalent browser automation framework.
+  1077→  1077→
+  1078→  1078→Test the actual customer experience at the required viewport sizes.
+  1079→  1079→
+  1080→  1080→Verify that no JavaScript errors occur and all interactive controls work.
+  1081→  1081→
+  1082→  1082→---
+  1083→  1083→
+  1084→  1084→# 12. Environment and Configuration Safety
+  1085→  1085→
+  1086→  1086→Inspect all configuration files.
+  1087→  1087→
+  1088→  1088→Validate JSON strictly.
+  1089→  1089→
+  1090→  1090→Fix the trailing comma in `AbrITPortal/appsettings.json` and add automated JSON validation.
+  1091→  1091→
+  1092→  1092→Bind all options correctly.
+  1093→  1093→
+  1094→  1094→Add validation for:
+  1095→  1095→
+  1096→  1096→- PostgreSQL.
+  1097→  1097→- Nextcloud URL.
+  1098→  1098→- Nextcloud administrator account.
+  1099→  1099→- Nextcloud app password.
+  1100→  1100→- SMS provider.
+  1101→  1101→- Payment provider.
+  1102→  1102→- Data Protection.
+  1103→  1103→- Trusted proxies.
+  1104→  1104→- Production security settings.
+  1105→  1105→
+  1106→  1106→Never commit credentials.
+  1107→  1107→
+  1108→  1108→Update `.env.example` with placeholders only.
+  1109→  1109→
+  1110→  1110→Never execute migrations against production.
+  1111→  1111→
+  1112→  1112→Never send real SMS.
+  1113→  1113→
+  1114→  1114→Never process real payments.
+  1115→  1115→
+  1116→  1116→Never create real customer Nextcloud users during automated tests.
+  1117→  1117→
+  1118→  1118→---
+  1119→  1119→
+  1120→  1120→# 13. Build and Verification
+  1121→  1121→
+  1122→  1122→After fixing the issues:
+  1123→  1123→
+  1124→  1124→1. Restore dependencies.
+  1125→  1125→2. Build the complete solution.
+  1126→  1126→3. Run all security tests.
+  1127→  1127→4. Run unit tests.
+  1128→  1128→5. Run PostgreSQL integration tests.
+  1129→  1129→6. Run Nextcloud API integration tests.
+  1130→  1130→7. Run browser E2E tests.
+  1131→  1131→8. Validate all JSON configuration.
+  1132→  1132→9. Inspect compiler warnings.
+  1133→  1133→10. Inspect the final Git diff.
+  1134→  1134→11. Check for secrets.
+  1135→  1135→12. Confirm that existing user changes were preserved.
+  1136→  1136→
+  1137→  1137→If the .NET SDK or external infrastructure is unavailable, state exactly what could not be executed.
+  1138→  1138→
+  1139→  1139→Never claim a test passed if it was not run.
+  1140→  1140→
+  1141→  1141→Never convert a source inspection into a runtime test claim.
+  1142→  1142→
+  1143→  1143→---
+  1144→  1144→
+  1145→  1145→# 14. Strict Change Rules
+  1146→  1146→
+  1147→  1147→- Work on a separate branch.
+  1148→  1148→- Do not commit.
+  1149→  1149→- Do not push.
+  1150→  1150→- Do not overwrite existing user changes.
+  1151→  1151→- Do not reset the repository.
+  1152→  1152→- Do not delete unrelated files.
+  1153→  1153→- Do not modify production databases.
+  1154→  1154→- Do not enable live payment processing.
+  1155→  1155→- Do not send real SMS.
+  1156→  1156→- Do not create real customer accounts on production Nextcloud.
+  1157→  1157→- Do not expose secrets.
+  1158→  1158→- Do not weaken authorization.
+  1159→  1159→- Do not invent commercial values.
+  1160→  1160→- Do not claim incomplete features are complete.
+  1161→  1161→- Keep the implementation compatible with Orchard Core 3.0.1 and .NET 10 unless a verified compatibility issue requires otherwise.
+  1162→  1162→
+  1163→  1163→Make changes in small, reviewable groups.
+  1164→  1164→
+  1165→  1165→---
+  1166→  1166→
+  1167→  1167→# 15. Final Deliverables
+  1168→  1168→
+  1169→  1169→Provide the following final report.
+  1170→  1170→
+  1171→  1171→## A. Confirmed Bug Inventory
+  1172→  1172→
+  1173→  1173→A complete table with:
+  1174→  1174→
+  1175→  1175→- Bug ID.
+  1176→  1176→- Severity.
+  1177→  1177→- File.
+  1178→  1178→- Method/component.
+  1179→  1179→- Root cause.
+  1180→  1180→- Fix.
+  1181→  1181→- Test evidence.
+  1182→  1182→
+  1183→  1183→## B. Fixed Issues
+  1184→  1184→
+  1185→  1185→List all confirmed bugs actually fixed.
+  1186→  1186→
+  1187→  1187→## C. Remaining Issues
+  1188→  1188→
+  1189→  1189→List every issue that remains unresolved and explain why.
+  1190→  1190→
+  1191→  1191→## D. Business Requirements Traceability
+  1192→  1192→
+  1193→  1193→Map every original PDF requirement, final commercial package requirement, and new Drive guide requirement to:
+  1194→  1194→
+  1195→  1195→- Implemented and tested.
+  1196→  1196→- Implemented but not fully verified.
+  1197→  1197→- Partially implemented.
+  1198→  1198→- Not implemented.
+  1199→  1199→- Blocked by external dependency.
+  1200→  1200→- Blocked by product-owner decision.
+  1201→  1201→
+  1202→  1202→## E. OTP and SMS Verification
+  1203→  1203→
+  1204→  1204→Provide proof that:
+  1205→  1205→
+  1206→  1206→- The correct OTP is generated.
+  1207→  1207→- The actual OTP is protected.
+  1208→  1208→- The actual OTP reaches the configured provider.
+  1209→  1209→- Mock is not used in Production.
+  1210→  1210→- OTP cannot be replayed.
+  1211→  1211→- Expiry and attempts work.
+  1212→  1212→- Multiple instances work.
+  1213→  1213→- Restart recovery works.
+  1214→  1214→
+  1215→  1215→Do not expose OTP values in the report.
+  1216→  1216→
+  1217→  1217→## F. Nextcloud Verification
+  1218→  1218→
+  1219→  1219→Provide proof that:
+  1220→  1220→
+  1221→  1221→- A dedicated Nextcloud user was created on an isolated test instance.
+  1222→  1222→- The user can authenticate independently.
+  1223→  1223→- The 100 MB quota was assigned and verified.
+  1224→  1224→- Quota changes work.
+  1225→  1225→- Duplicate provisioning does not create duplicate accounts.
+  1226→  1226→- User status can be retrieved and changed.
+  1227→  1227→- Credentials are not leaked.
+  1228→  1228→
+  1229→  1229→## G. UI Verification
+  1230→  1230→
+  1231→  1231→Provide screenshots and test results for all required pages and viewport sizes.
+  1232→  1232→
+  1233→  1233→## H. Test Results
+  1234→  1234→
+  1235→  1235→List exact commands and actual outputs.
+  1236→  1236→
+  1237→  1237→## I. Deployment and Migration Instructions
+  1238→  1238→
+  1239→  1239→Provide safe deployment steps, configuration requirements, migration order, and rollback instructions.
+  1240→  1240→
+  1241→  1241→## J. Production Readiness Decision
+  1242→  1242→
+  1243→  1243→Give a clear verdict:
+  1244→  1244→
+  1245→  1245→- Not ready.
+  1246→  1246→- Ready for isolated staging.
+  1247→  1247→- Ready for controlled production deployment.
+  1248→  1248→
+  1249→  1249→Do not declare Production Ready unless the actual workflows have been implemented and tested.
+  1250→  1250→
+  1251→  1251→The final objective is a correct, secure, maintainable AbrIT customer portal with a working OTP lifecycle, consistent commercial packages, a real Nextcloud user provisioning integration, and a professionally verified customer and admin UI.

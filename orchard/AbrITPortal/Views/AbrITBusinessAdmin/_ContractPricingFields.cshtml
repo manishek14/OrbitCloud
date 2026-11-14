@@ -1,0 +1,17 @@
+@model CommerceContractRow?
+@{
+    var isNew = Model is null;
+}
+<input type="hidden" name="IsNew" value="@isNew.ToString().ToLowerInvariant()" />
+<input type="hidden" name="Revision" value="@(Model?.Revision ?? 0)" />
+<div class="abrit-pricing-grid">
+    <label>مدت قرارداد (ماه) <input type="number" name="Months" value="@(Model?.Months ?? 1)" min="1" max="120" required readonly="@(!isNew)" /></label>
+    <label>تخفیف (درصد) <input type="number" name="DiscountPercent" value="@((Model?.DiscountRate * 100 ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" min="0" max="99" step="0.01" required /></label>
+    <label>هزینه راه‌اندازی از قیمت یک ماه (درصد) <input type="number" name="OnboardingPercent" value="@((Model?.OnboardingRate * 100 ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" min="0" max="100" step="0.01" required /></label>
+    <label>عنوان مدت <input name="LabelFa" value="@Model?.LabelFa" required /></label>
+    <label>عنوان تخفیف <input name="DiscountLabelFa" value="@Model?.DiscountLabelFa" required /></label>
+    <label>عنوان راه‌اندازی <input name="OnboardingLabelFa" value="@Model?.OnboardingLabelFa" required /></label>
+    <label class="abrit-pricing-wide">یادداشت <textarea name="NoteFa" rows="2">@Model?.NoteFa</textarea></label>
+    <label class="abrit-pricing-check"><input type="checkbox" name="RequiresBusinessApproval" value="true" checked="@(Model?.RequiresBusinessApproval ?? false)" /> نیازمند تأیید تجاری</label>
+</div>
+<div class="abrit-pricing-actions"><button type="submit">ذخیره</button><button type="button" data-close-form>انصراف</button></div>

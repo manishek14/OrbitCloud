@@ -1,0 +1,115 @@
+@model AbrITPortal.Areas.Admin.Controllers.AbrITOperationsOverview
+@{
+    var payments = Model.PaymentStatuses ?? Array.Empty<AbrITPortal.Areas.Admin.Controllers.AdminStatusCount>();
+    var sms = Model.SmsStatuses ?? Array.Empty<AbrITPortal.Areas.Admin.Controllers.AdminStatusCount>();
+}
+<div class="abrit-ops" dir="rtl">
+    <header class="abrit-ops__hero">
+        <span class="abrit-ops__eyebrow">ABRIT OPERATIONS</span>
+        <h1>مرکز مدیریت AbrIT</h1>
+        <p>نمای عملیاتی tenant جاری؛ شمارنده‌ها از حساب‌ها و سفارش‌های واقعی Orchard خوانده می‌شوند. داده‌های فاقد منبع پایدار، صریحاً ناموجود نمایش داده شده‌اند.</p>
+        <nav class="abrit-ops__quick" aria-label="دسترسی سریع">
+            <a href="/Admin/AbrIT/Customers">مشتریان</a>
+            <a href="/Admin/AbrIT/Orders">سفارش‌ها</a>
+            <a href="/Admin/AbrIT/Commercial/Plans">پلن‌ها</a>
+            <a href="/Admin/AbrIT/Payments">پرداخت‌ها</a>
+            <a href="/Admin/AbrIT/Sms">صف پیامک</a>
+        </nav>
+    </header>
+
+    <section class="abrit-ops__stats" aria-label="شاخص‌های واقعی">
+        <article class="abrit-ops__stat"><span>مشتریان ثبت‌شده</span><strong>@Model.TotalCustomers</strong><small>حساب‌های Orchard Users</small></article>
+        <article class="abrit-ops__stat"><span>کل سفارش‌ها</span><strong>@Model.TotalOrders</strong><small>سفارش‌های منتشرشده AbrITOrder</small></article>
+        <article class="abrit-ops__stat"><span>در انتظار</span><strong>@Model.PendingOrders</strong><small>بر اساس وضعیت سفارش ذخیره‌شده</small></article>
+        <article class="abrit-ops__stat"><span>سرویس‌های فعال</span><strong>@Model.ActiveServices</strong><small>سفارش‌هایی با وضعیت فعال</small></article>
+        <article class="abrit-ops__stat"><span>سفارش‌های تکمیل‌شده</span><strong>@Model.CompletedOrders</strong><small>بر اساس وضعیت سفارش ذخیره‌شده</small></article>
+    </section>
+
+    <div class="abrit-ops__grid">
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">مالی</span><h2>وضعیت پرداخت</h2></div>
+            <p>@(Model.PaymentDurable ? "ذخیره‌سازی PostgreSQL فعال است." : "ذخیره‌سازی پایدار PostgreSQL فعال نیست.")</p>
+            @if (Model.RecentPaymentAttempts is int paymentCount)
+            {
+                <p class="abrit-ops__note">وضعیت‌های زیر از حداکثر @paymentCount تلاش اخیر هستند؛ مجموع تاریخی در دسترس نیست.</p>
+                @if (payments.Count > 0)
+                {
+                    <ul class="abrit-ops__status-list">
+                        @foreach (var entry in payments) { <li><span>@entry.Status</span><strong>@entry.Count</strong></li> }
+                    </ul>
+                }
+                else { <p class="abrit-ops__muted">تلاش پرداختی ثبت نشده است.</p> }
+            }
+            else { <p class="abrit-ops__unavailable">فروشگاه پرداخت در این tenant در دسترس نیست.</p> }
+            <a class="abrit-ops__link" href="/Admin/AbrIT/Payments">مشاهده تلاش‌ها</a>
+        </section>
+
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">پیام‌رسانی</span><h2>SMS.ir و صف ارسال</h2></div>
+            <p>@(Model.SmsIrEnabled ? "ارائه‌دهنده SMS.ir فعال گزارش شده است." : "ارسال واقعی SMS.ir غیرفعال است.")</p>
+            <p>@(Model.SmsDurable ? "ذخیره‌سازی صف PostgreSQL فعال است." : "صف پایدار PostgreSQL فعال نیست.")</p>
+            @if (Model.RecentSmsMessages is int messageCount)
+            {
+                <p class="abrit-ops__note">وضعیت‌های زیر از حداکثر @messageCount پیام اخیر هستند.</p>
+                @if (sms.Count > 0)
+                {
+                    <ul class="abrit-ops__status-list">
+                        @foreach (var entry in sms) { <li><span>@entry.Status</span><strong>@entry.Count</strong></li> }
+                    </ul>
+                }
+                else { <p class="abrit-ops__muted">پیامی ثبت نشده است.</p> }
+            }
+            else { <p class="abrit-ops__unavailable">فروشگاه پیامک در این tenant در دسترس نیست.</p> }
+            <a class="abrit-ops__link" href="/Admin/AbrIT/Sms">مشاهده صف و وضعیت</a>
+        </section>
+
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">اجرای وظایف</span><h2>کارهای پس‌زمینه</h2></div>
+            <p>تعریف و زمان‌بندی وظایف ثبت‌شده در Orchard قابل مشاهده است؛ تاریخچه اجرا، اجرای بعدی و خطاها ذخیره نمی‌شوند.</p>
+            <span class="abrit-ops__state is-pending">تاریخچه اجرا در دسترس نیست</span>
+            <a class="abrit-ops__link" href="/Admin/AbrIT/Jobs">مشاهده زمان‌بندی‌ها</a>
+        </section>
+
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">زیرساخت</span><h2>Drive و راه‌اندازی</h2></div>
+            <p>@(Model.DriveConfigured ? "پیکربندی Drive فعال است؛ وضعیت provision مشتریان در مدل فعلی قابل فهرست‌کردن نیست." : "پیکربندی Drive فعال نیست.")</p>
+            <p class="abrit-ops__unavailable">وضعیت تخصیص سرویس به سفارش متصل نشده است.</p>
+            <div class="abrit-ops__links"><a href="/Admin/AbrIT/Drive">AbrIT Drive</a><a href="/Admin/AbrIT/Provisioning">راه‌اندازی سرویس</a></div>
+        </section>
+
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">تجاری</span><h2>پلن‌ها و قواعد قیمت</h2></div>
+            <span class="abrit-ops__state @(Model.CommercialApproved ? "is-ready" : "is-pending")">@(Model.CommercialApproved ? "مقادیر تأییدشده" : "نیازمند تأیید تجاری")</span>
+            <p>فرم مدیریت، داده‌های قواعد تجاری tenant را نشان می‌دهد. ثبت پیش‌نویس به‌تنهایی تأیید یا انتشار ایجاد نمی‌کند.</p>
+            <a class="abrit-ops__link" href="/Admin/AbrIT/Commercial/Plans">مدیریت پلن‌ها و پیش‌نمایش قیمت</a>
+        </section>
+
+        <section class="abrit-ops__card">
+            <div class="abrit-ops__card-heading"><span class="abrit-ops__label">گزارش</span><h2>عملیات ثبت‌نشده</h2></div>
+            <p>تاریخچه تغییرات مشتری و رویدادهای عملیاتی منبع پایدار ندارد؛ هیچ رویدادی تخمین زده نمی‌شود.</p>
+            <span class="abrit-ops__state is-pending">ثبت رویداد در دسترس نیست</span>
+            <a class="abrit-ops__link" href="/Admin/AbrIT/Reports">مشاهده گزارش‌های در دسترس</a>
+        </section>
+    </div>
+
+    <section class="abrit-ops__section">
+        <div class="abrit-ops__section-heading"><div><span class="abrit-ops__label">آخرین داده‌های موجود</span><h2>سفارش‌های اخیر</h2></div><a href="/Admin/AbrIT/Orders">همه سفارش‌ها</a></div>
+        @if (Model.RecentOrders.Count == 0)
+        {
+            <div class="abrit-ops__empty"><h3>سفارشی ثبت نشده است</h3><p>سفارش منتشرشده‌ای در tenant جاری وجود ندارد.</p></div>
+        }
+        else
+        {
+            <div class="abrit-ops__table-wrap"><table class="abrit-ops__table">
+                <thead><tr><th>شناسه</th><th>مشتری</th><th>سرویس</th><th>تاریخ</th><th>مبلغ ثبت‌شده</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var order in Model.RecentOrders)
+                {
+                    <tr><td class="abrit-ops__mono">@order.OrderId</td><td>@order.CustomerName</td><td>@order.Service</td><td dir="ltr">@order.CreatedUtc?.ToString("yyyy/MM/dd")</td><td>@order.Price</td><td><span class="abrit-ops__badge">@order.Status</span></td><td><a href="/Admin/AbrIT/Orders/@Uri.EscapeDataString(order.OrderId)">جزئیات</a></td></tr>
+                }
+                </tbody>
+            </table></div>
+        }
+    </section>
+    <p class="abrit-ops__footnote">تاریخ ثبت‌نام مشتری در مدل هویت فعلی نگهداری نمی‌شود؛ «مشتریان اخیر» قابل گزارش دقیق نیست.</p>
+</div>

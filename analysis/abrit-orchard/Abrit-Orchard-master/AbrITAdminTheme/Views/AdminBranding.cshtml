@@ -1,0 +1,9 @@
+@inject IOptions<OrchardCore.Admin.AdminOptions> AdminOptions
+<zone name="HeadMeta">
+    <link asp-src="~/OrchardCore.Admin/favicon.ico" type="image/x-icon" rel="shortcut icon" />
+</zone>
+<style asp-name="abrit-admin" at="Head"></style>
+<a class="ta-navbar-brand navbar-brand" href="@Url.Content("~/" + AdminOptions.Value.AdminUrlPrefix)">
+    <span class="abrit-admin-brand-mark" aria-hidden="true">A</span>
+    <span>AbrIT <small>مدیریت سامانه</small></span>
+</a>

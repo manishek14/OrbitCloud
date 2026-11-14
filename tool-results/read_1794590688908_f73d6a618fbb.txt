@@ -1,0 +1,1107 @@
+     1→# AbrIT — Critical Architecture Correction, Real Orchard Core Admin, PostgreSQL, Payment Gateways, SMS.ir, and Drive
+     2→
+     3→You are working on the existing AbrIT repository.
+     4→
+     5→This task is a production-oriented architecture correction and feature-completion task, NOT another visual-only redesign.
+     6→
+     7→The previous implementation is not accepted in its current form.
+     8→
+     9→The customer portal UI is generally a good starting point and should be preserved and improved. However, the administration panel is fundamentally wrong: it is currently a custom React/Next.js dashboard that imitates Orchard Core.
+    10→
+    11→**THE ADMINISTRATION PANEL MUST BE THE REAL ORCHARD CORE ADMINISTRATION PANEL. THIS IS A NON-NEGOTIABLE REQUIREMENT.**
+    12→
+    13→A dashboard that looks like Orchard is not Orchard. A custom React page named `/admin` is not Orchard. Recreating Orchard menus, content management, users, roles, and settings in React is not an acceptable replacement.
+    14→
+    15→---
+    16→
+    17→# 1. First: Understand the Actual Repository
+    18→
+    19→Inspect the uploaded repository completely before editing.
+    20→
+    21→Important current findings:
+    22→
+    23→- The root application is a Next.js application.
+    24→- `src/app/page.tsx` renders a single application shell.
+    25→- `src/lib/router.tsx` implements hash-based navigation.
+    26→- `src/components/app-shell.tsx` routes `/admin` to custom React views.
+    27→- `src/lib/routes.ts` describes the admin area as "Orchard-style AbrIT Admin".
+    28→- The current browser route is effectively `/#/admin`, not a real Orchard Core `/admin` route.
+    29→- The Prisma schema currently uses SQLite.
+    30→- `src/lib/commerce/orders.ts` implements a custom simulated payment flow.
+    31→- `src/lib/auth/otp.ts` currently defaults to displaying OTP codes instead of sending real SMS.
+    32→- Nextcloud OCS client and Drive business logic already exist in the Next.js application.
+    33→- An Orchard Core/.NET project is also present under:
+    34→  `analysis/abrit-orchard/Abrit-Orchard-master`
+    35→- That directory contains an Orchard Core application, an AbrIT admin theme project, and previous implementation work.
+    36→
+    37→Inspect both codebases and determine how to integrate them properly.
+    38→
+    39→Do not assume the nested Orchard project is automatically active or production-ready. Verify its solution, project references, startup configuration, dependencies, theme registration, and current functionality.
+    40→
+    41→Do not simply leave the Orchard project under an `analysis` directory while continuing to serve a fake React admin panel.
+    42→
+    43→## Mandatory audit deliverable
+    44→
+    45→Before editing, report:
+    46→
+    47→1. Which application currently serves the homepage.
+    48→2. Which application currently serves the customer portal.
+    49→3. Which application currently serves `/admin`.
+    50→4. Which Orchard Core project is available.
+    51→5. Whether the AbrIT admin theme is referenced by the running Orchard application.
+    52→6. Which database each application currently uses.
+    53→7. How both applications will share the same production data.
+    54→8. How routing will make the real Orchard administration panel accessible at `/admin`.
+    55→
+    56→Then implement the correction.
+    57→
+    58→---
+    59→
+    60→# 2. NON-NEGOTIABLE: Real Orchard Core Administration
+    61→
+    62→This requirement has the highest priority.
+    63→
+    64→The final application MUST use the actual Orchard Core CMS administration area.
+    65→
+    66→The current custom React admin must no longer be presented as the real CMS.
+    67→
+    68→## Required outcome
+    69→
+    70→Opening:
+    71→
+    72→`https://your-domain.com/admin`
+    73→
+    74→must open the real Orchard Core administration interface.
+    75→
+    76→It must not open:
+    77→
+    78→- A Next.js admin dashboard.
+    79→- A React imitation.
+    80→- A custom SPA route.
+    81→- A page that only has Orchard-like styling.
+    82→- A fake content management interface.
+    83→
+    84→The actual Orchard Core application must own the administration route.
+    85→
+    86→## Dedicated AbrIT Admin Theme
+    87→
+    88→Create, register, activate, and verify the actual `AbrITAdminTheme`.
+    89→
+    90→Use Orchard Core's supported Admin Theme mechanism.
+    91→
+    92→The theme must:
+    93→
+    94→- Be based on `TheAdmin`.
+    95→- Include the required `admin` theme tag.
+    96→- Be referenced by the actual running Orchard application.
+    97→- Be activated as the current Admin Theme.
+    98→- Override the appropriate Orchard display shapes and templates.
+    99→- Preserve Orchard Core's real administration behavior.
+   100→- Provide AbrIT branding, logo, typography, and icons.
+   101→- Use a deep navy and blue visual identity.
+   102→- Default to dark appearance.
+   103→- Support light appearance.
+   104→- Provide responsive navigation and layouts.
+   105→- Improve the visual appearance of Orchard forms, tables, editors, menus, dialogs, and dashboard widgets.
+   106→
+   107→Follow the official Orchard documentation:
+   108→
+   109→https://docs.orchardcore.net/en/latest/guides/create-admin-theme/
+   110→
+   111→https://docs.orchardcore.net/en/stable/reference/themes/admin-theme/
+   112→
+   113→https://docs.orchardcore.net/en/latest/reference/modules/AdminDashboard/
+   114→
+   115→https://docs.orchardcore.net/en/main/reference/modules/Navigation/
+   116→
+   117→## Preserve actual Orchard functionality
+   118→
+   119→The following must remain real Orchard Core functionality, not recreated React pages:
+   120→
+   121→- Content Management.
+   122→- Content Types.
+   123→- Content Parts.
+   124→- Content Fields.
+   125→- Media Library.
+   126→- Pages and Articles.
+   127→- Menus.
+   128→- Users.
+   129→- Roles.
+   130→- Permissions.
+   131→- Workflows.
+   132→- Queries.
+   133→- Recipes.
+   134→- Settings.
+   135→- Localization.
+   136→- Admin Dashboard.
+   137→
+   138→Do not remove built-in Orchard modules to make the interface simpler.
+   139→
+   140→## AbrIT business administration inside Orchard
+   141→
+   142→Implement the AbrIT-specific business administration functions as actual Orchard-integrated modules, controllers, views, and services.
+   143→
+   144→Required administration areas:
+   145→
+   146→- Customers.
+   147→- Plans and Pricing.
+   148→- Orders.
+   149→- Payments.
+   150→- Invoices.
+   151→- Transactions.
+   152→- Subscriptions.
+   153→- Services.
+   154→- Drive accounts.
+   155→- Drive provisioning.
+   156→- Support tickets.
+   157→- Notifications.
+   158→- Reports.
+   159→- Audit logs.
+   160→- System configuration.
+   161→
+   162→Use Orchard authorization and permissions.
+   163→
+   164→The Orchard administrator must be able to manage these business records using the actual Orchard administration interface.
+   165→
+   166→Do not duplicate the same business data in a separate in-memory or SQLite database.
+   167→
+   168→## Critical acceptance test
+   169→
+   170→After implementation:
+   171→
+   172→1. Open `/admin`.
+   173→2. Verify that the real Orchard Core admin application responds.
+   174→3. Log in using the Orchard administrator account.
+   175→4. Open the real Orchard Content Management page.
+   176→5. Open the real Orchard Media Library.
+   177→6. Open Users and Roles.
+   178→7. Open the AbrIT-specific business administration pages.
+   179→8. Verify that the AbrIT Admin Theme is the active Orchard Admin Theme.
+   180→
+   181→Provide screenshots and technical evidence.
+   182→
+   183→If `/admin` still renders the custom React dashboard, the task has failed.
+   184→
+   185→---
+   186→
+   187→# 3. Customer Portal — Preserve the Existing Good Work
+   188→
+   189→The existing Next.js customer portal has a useful multi-page structure.
+   190→
+   191→Preserve its visual direction, components, customer-facing routes, and working functionality where possible.
+   192→
+   193→Do not unnecessarily rewrite the entire portal.
+   194→
+   195→However, remove the administration area from the Next.js customer-facing application once Orchard owns it.
+   196→
+   197→The customer portal must remain separate from Orchard's administrator interface.
+   198→
+   199→Keep the right-side persistent navigation.
+   200→
+   201→Required customer routes include:
+   202→
+   203→- `/portal`
+   204→- `/portal/services`
+   205→- `/portal/services/{id}`
+   206→- `/portal/plans`
+   207→- `/portal/plans/{id}`
+   208→- `/portal/cart`
+   209→- `/portal/checkout`
+   210→- `/portal/payment/result`
+   211→- `/portal/orders`
+   212→- `/portal/billing`
+   213→- `/portal/drive`
+   214→- `/portal/tickets`
+   215→- `/portal/tickets/{id}`
+   216→- `/portal/notifications`
+   217→- `/portal/profile`
+   218→- `/portal/security`
+   219→- `/portal/settings`
+   220→
+   221→Keep authentication pages separate:
+   222→
+   223→- `/auth/login`
+   224→- `/auth/register`
+   225→- `/auth/verify-otp`
+   226→- `/auth/forgot-password`
+   227→- `/auth/reset-password`
+   228→
+   229→Do not turn the customer portal into a single-page landing page.
+   230→
+   231→Keep the existing navy/blue design direction, dark mode default, light mode option, and polished animations.
+   232→
+   233→---
+   234→
+   235→# 4. Production Database: PostgreSQL Is Mandatory
+   236→
+   237→The production database MUST be PostgreSQL.
+   238→
+   239→The current Prisma schema uses SQLite:
+   240→
+   241→`datasource db { provider = "sqlite" }`
+   242→
+   243→This must be corrected.
+   244→
+   245→## Requirements
+   246→
+   247→- Use PostgreSQL for production.
+   248→- Update Prisma's datasource provider to PostgreSQL if Prisma remains responsible for the Next.js data layer.
+   249→- Configure the actual Orchard Core application to use PostgreSQL as well.
+   250→- Use environment-based connection strings.
+   251→- Never hardcode production database credentials.
+   252→- Keep development and production configurations separate.
+   253→- Use migrations for schema changes.
+   254→- Do not use `prisma db push --accept-data-loss` as a production deployment strategy.
+   255→- Never use SQLite as a production fallback.
+   256→- Do not use in-memory stores for production orders, transactions, SMS outbox, OTP grants, subscriptions, or Drive account mappings.
+   257→- Ensure both the customer portal and Orchard administration access the same canonical business records.
+   258→- Avoid duplicated business entities and conflicting sources of truth.
+   259→
+   260→If both Next.js and Orchard Core remain separate applications, define a clear database ownership and integration contract.
+   261→
+   262→Use separate database schemas if appropriate, but do not create independent copies of customers, orders, payments, subscriptions, or Drive accounts.
+   263→
+   264→## Production safety
+   265→
+   266→Review:
+   267→
+   268→- Database indexes.
+   269→- Unique constraints.
+   270→- Foreign keys.
+   271→- Transactions.
+   272→- Concurrency.
+   273→- Idempotency.
+   274→- Migration rollback strategy.
+   275→- Connection pooling.
+   276→- Backups.
+   277→- Logging.
+   278→- Secrets management.
+   279→
+   280→Disable verbose Prisma query logging in production unless explicitly required by a secure diagnostic configuration.
+   281→
+   282→Remove `ignoreBuildErrors: true` from `next.config.ts`. Production builds must not silently ignore TypeScript errors.
+   283→
+   284→Do not claim Production readiness without a successful build and migration verification.
+   285→
+   286→---
+   287→
+   288→# 5. Pricing and Commercial Rules — Update the Existing Source of Truth
+   289→
+   290→The current commercial catalog is:
+   291→
+   292→`src/lib/commerce/catalog.ts`
+   293→
+   294→Keep a single authoritative pricing source.
+   295→
+   296→Do not duplicate commercial values across UI components, API routes, Orchard controllers, or checkout calculations.
+   297→
+   298→Update the existing catalog and every dependent component, API, quote engine, and admin display.
+   299→
+   300→## Contract periods
+   301→
+   302→The required contract periods are:
+   303→
+   304→- 1 month.
+   305→- 3 months.
+   306→- 6 months.
+   307→
+   308→The previous 12-month option must be removed.
+   309→
+   310→Update:
+   311→
+   312→- `ContractPolicy`.
+   313→- `CONTRACT_POLICIES`.
+   314→- `COMMERCE_POLICY_FA`.
+   315→- Quote calculation.
+   316→- Cart validation.
+   317→- Checkout validation.
+   318→- Public pricing UI.
+   319→- Customer plan detail UI.
+   320→- Admin pricing UI.
+   321→- Order snapshots.
+   322→- Tests.
+   323→- Documentation.
+   324→
+   325→Preserve existing approved commercial discounts for 3-month and 6-month contracts.
+   326→
+   327→For the new 1-month contract, do not invent a discount or onboarding fee. Make these values explicitly configurable and report any required business approval.
+   328→
+   329→No hidden 12-month option may remain in the API or UI.
+   330→
+   331→## Required SLA values
+   332→
+   333→Use the following exact package mapping:
+   334→
+   335→| Package | Required SLA |
+   336→|---|---|
+   337→| پایه | ۸ ساعت |
+   338→| استاندارد | ۵ ساعت |
+   339→| حرفه‌ای | ۳ ساعت |
+   340→| سازمانی | ۱ ساعت |
+   341→| سازمانی پلاس | لحظه‌ای |
+   342→
+   343→These values supersede the previous SLA values in the existing catalog.
+   344→
+   345→Update all package fields and displayed descriptions.
+   346→
+   347→Important: SLA describes the agreed start of incident handling, not guaranteed full resolution time, unless the contract explicitly defines otherwise.
+   348→
+   349→For سازمانی پلاس, define the meaning of "لحظه‌ای" clearly in the business configuration and display it consistently.
+   350→
+   351→Do not accidentally retain the previous 30-minute SLA text.
+   352→
+   353→---
+   354→
+   355→# 6. User and Endpoint Quantity Configuration
+   356→
+   357→The customer must be able to configure the required number of users and endpoints before purchasing a plan.
+   358→
+   359→The current portal has a stepper implementation in:
+   360→
+   361→`src/views/portal/plan-detail-view.tsx`
+   362→
+   363→However, this functionality is not sufficiently discoverable in the overall pricing and purchase experience.
+   364→
+   365→Improve it.
+   366→
+   367→## Required UI
+   368→
+   369→On each plan detail and purchase configuration page, show:
+   370→
+   371→- Included users.
+   372→- Additional user count.
+   373→- Included endpoints.
+   374→- Additional endpoint count.
+   375→- Monthly extra-user fee.
+   376→- Monthly extra-endpoint fee.
+   377→- Updated total price.
+   378→- Contract period.
+   379→- Discounts.
+   380→- Onboarding fee.
+   381→- Final payable amount.
+   382→
+   383→Use clear numeric controls or accessible steppers.
+   384→
+   385→The price must update immediately after changing the number of users or endpoints.
+   386→
+   387→Do not allow the UI to calculate a final price independently of the backend.
+   388→
+   389→The backend must recompute every quote and checkout total.
+   390→
+   391→If a package exceeds the approved pricing limits, show the Enterprise Custom assessment flow instead of inventing a price.
+   392→
+   393→The customer must see the exact configuration in:
+   394→
+   395→- Cart.
+   396→- Checkout.
+   397→- Order details.
+   398→- Invoice.
+   399→- Subscription details.
+   400→- Admin order details.
+   401→
+   402→Persist an immutable pricing snapshot with each order.
+   403→
+   404→---
+   405→
+   406→# 7. AbrIT Drive — Make It Visible and Functional
+   407→
+   408→The Drive feature must be clearly visible in pricing and customer-facing pages.
+   409→
+   410→The service is based on Nextcloud:
+   411→
+   412→`https://drive.abrit.cloud`
+   413→
+   414→The existing Nextcloud OCS client is a useful starting point.
+   415→
+   416→However, inspect and verify the entire implementation.
+   417→
+   418→## Free trial quota
+   419→
+   420→Every eligible customer must have access to:
+   421→
+   422→**100 MB of free AbrIT Drive storage.**
+   423→
+   424→Show this clearly in the pricing page and Drive onboarding UI.
+   425→
+   426→The free trial must not be hidden inside technical code or an inaccessible configuration.
+   427→
+   428→## Paid plan quotas
+   429→
+   430→The current commercial catalog defines:
+   431→
+   432→- Essential: 10 GB.
+   433→- Standard: 25 GB.
+   434→- Professional: 50 GB.
+   435→- Business: 100 GB.
+   436→- Enterprise: 250 GB.
+   437→
+   438→Show the included Drive quota on every plan card and plan detail page.
+   439→
+   440→Also display the 100 MB free trial clearly as the initial trial entitlement.
+   441→
+   442→Important: The previous commercial documentation contains a conflict for the Essential package between the Nextcloud/File Sharing row and Cloud Storage row. Report this conflict and do not silently invent a different commercial entitlement.
+   443→
+   444→## Actual Nextcloud provisioning
+   445→
+   446→Use the official OCS User Provisioning API.
+   447→
+   448→Official documentation:
+   449→
+   450→https://docs.nextcloud.com/server/stable/admin_manual/configuration_user/user_provisioning_api.html
+   451→
+   452→Base API:
+   453→
+   454→`/ocs/v1.php/cloud/users`
+   455→
+   456→Required functionality:
+   457→
+   458→- Create a Nextcloud account.
+   459→- Assign a unique username.
+   460→- Set password and email.
+   461→- Assign quota.
+   462→- Retrieve account status.
+   463→- Retrieve actual quota usage.
+   464→- Update quota when the customer changes plans.
+   465→- Enable an account.
+   466→- Disable an account.
+   467→- Detect duplicate accounts.
+   468→- Prevent duplicate provisioning.
+   469→- Store the Nextcloud account identifier against the customer account.
+   470→
+   471→All Nextcloud administrator credentials must remain server-side.
+   472→
+   473→Required headers:
+   474→
+   475→- `OCS-APIRequest: true`
+   476→- `Accept: application/json`
+   477→- `Authorization: Basic ...`
+   478→- `Content-Type: application/x-www-form-urlencoded` for POST requests.
+   479→
+   480→## Provisioning behavior
+   481→
+   482→The current requirement is to provide a free 100 MB Drive trial after customer registration or explicit Drive activation.
+   483→
+   484→Implement an idempotent provisioning flow.
+   485→
+   486→A repeated request must never create another Nextcloud account.
+   487→
+   488→When the customer purchases a paid plan, update the existing account quota according to the plan.
+   489→
+   490→Show:
+   491→
+   492→- Account status.
+   493→- Username.
+   494→- Drive URL.
+   495→- Total quota.
+   496→- Used storage.
+   497→- Available storage.
+   498→- Activation status.
+   499→- Last synchronization time.
+   500→- Provisioning errors where relevant.
+   501→
+   502→Do not show fabricated usage or quota values.
+   503→
+   504→Keep SSO out of scope.
+   505→
+   506→Test the initial account with 100 MB and verify that the account can actually log in to Nextcloud.
+   507→
+   508→---
+   509→
+   510→# 8. Real Sandbox Payment Gateways
+   511→
+   512→The current payment page is only an internal mock.
+   513→
+   514→Replace the mock-only purchase flow with actual Sandbox integrations.
+   515→
+   516→Required gateways:
+   517→
+   518→1. ZarinPal Sandbox.
+   519→2. Zibal Sandbox.
+   520→
+   521→Bank Mellat must be disabled.
+   522→
+   523→## Official documentation
+   524→
+   525→ZarinPal:
+   526→
+   527→https://www.zarinpal.com/docs/
+   528→
+   529→Zibal:
+   530→
+   531→https://help.zibal.ir/#docs
+   532→
+   533→Read the current official documentation before implementing either provider.
+   534→
+   535→Do not rely on outdated code snippets or assume undocumented request/response fields.
+   536→
+   537→## ZarinPal
+   538→
+   539→Implement the documented payment request, redirect, callback, and verification flow using the official Sandbox environment.
+   540→
+   541→Verify the current official documentation for:
+   542→
+   543→- Request endpoint.
+   544→- Payment redirect URL.
+   545→- Callback parameters.
+   546→- Authority handling.
+   547→- Verification endpoint.
+   548→- Verification response codes.
+   549→- Amount and currency units.
+   550→- Reference ID.
+   551→
+   552→Use a server-side provider adapter.
+   553→
+   554→Store the returned authority against the transaction.
+   555→
+   556→Never mark an order as paid based only on the browser redirect.
+   557→
+   558→## Zibal
+   559→
+   560→Implement the documented request, redirect, callback, and verification flow using the official test/Sandbox configuration.
+   561→
+   562→Verify the current official documentation for:
+   563→
+   564→- Request endpoint.
+   565→- Test merchant configuration.
+   566→- Payment redirect URL.
+   567→- Track ID.
+   568→- Callback parameters.
+   569→- Verify endpoint.
+   570→- Result codes.
+   571→- Amount and currency units.
+   572→
+   573→Store the returned track ID against the transaction.
+   574→
+   575→Never trust a callback's success flag without server-side verification.
+   576→
+   577→## Currency conversion
+   578→
+   579→The application's commercial catalog uses Toman.
+   580→
+   581→Verify each provider's documented currency unit.
+   582→
+   583→Implement explicit, tested conversion at the provider boundary.
+   584→
+   585→Never multiply or divide amounts by ten in multiple places.
+   586→
+   587→The final verified provider amount must match the original server-side order amount after conversion.
+   588→
+   589→## Bank Mellat
+   590→
+   591→Bank Mellat must be:
+   592→
+   593→- Disabled in configuration.
+   594→- Excluded from selectable payment methods.
+   595→- Excluded from checkout options.
+   596→- Rejected by server-side provider selection.
+   597→- Unavailable as a fallback.
+   598→- Clearly marked inactive in admin payment settings.
+   599→
+   600→Do not remove unrelated legacy code blindly, but make sure no customer can initiate a Mellat payment.
+   601→
+   602→## Payment flow
+   603→
+   604→The required flow is:
+   605→
+   606→1. Customer selects a plan.
+   607→2. Customer configures users and endpoints.
+   608→3. Customer adds the configuration to the cart.
+   609→4. Customer reviews the cart.
+   610→5. Customer completes checkout information.
+   611→6. Backend creates a pending order.
+   612→7. Backend creates a pending transaction.
+   613→8. Customer selects ZarinPal Sandbox or Zibal Sandbox.
+   614→9. Backend requests payment from the selected provider.
+   615→10. Customer is redirected to the actual provider Sandbox payment page.
+   616→11. Provider returns the customer to AbrIT.
+   617→12. Backend verifies the payment with the provider.
+   618→13. Backend validates the verified amount, order, transaction, and provider reference.
+   619→14. On verified success, the transaction is finalized.
+   620→15. Order becomes paid.
+   621→16. Invoice is issued.
+   622→17. Subscription and service records are activated.
+   623→18. Drive quota is updated according to the purchased plan.
+   624→19. Customer is redirected to the AbrIT payment result page.
+   625→
+   626→Required return destination:
+   627→
+   628→`/portal/payment/result`
+   629→
+   630→Use the actual production route structure; do not rely on a hash-only route.
+   631→
+   632→## Payment result page
+   633→
+   634→Show:
+   635→
+   636→- Payment success or failure.
+   637→- Order number.
+   638→- Transaction reference.
+   639→- Provider.
+   640→- Paid amount.
+   641→- Invoice link.
+   642→- Subscription status.
+   643→- Next action.
+   644→
+   645→If the provider callback arrives but verification is unavailable or ambiguous, keep the transaction pending and support reconciliation.
+   646→
+   647→Never mark a payment successful just because the customer returned to the site.
+   648→
+   649→## Sandbox safety
+   650→
+   651→Keep all payment providers in Sandbox mode for this task.
+   652→
+   653→Do not switch to live payments.
+   654→
+   655→Do not request or commit real merchant credentials.
+   656→
+   657→Use environment variables and clearly documented configuration.
+   658→
+   659→Do not claim that a test transaction was verified unless an actual provider Sandbox response confirms it.
+   660→
+   661→---
+   662→
+   663→# 9. SMS.ir — Real OTP Delivery
+   664→
+   665→The OTP system currently has a display-based delivery mode.
+   666→
+   667→This is not acceptable as the production delivery mechanism.
+   668→
+   669→Use SMS.ir as the actual SMS provider.
+   670→
+   671→Official documentation:
+   672→
+   673→https://sms.ir/web-service/
+   674→
+   675→Read the current documentation, including the Verify API and the relevant error responses.
+   676→
+   677→## Required API
+   678→
+   679→The documented Verify endpoint is:
+   680→
+   681→`POST https://api.sms.ir/v1/send/verify`
+   682→
+   683→Use:
+   684→
+   685→- `Content-Type: application/json`
+   686→- `Accept: text/plain`
+   687→- `x-api-key: YOUR_API_KEY`
+   688→
+   689→The request must contain:
+   690→
+   691→- Mobile number.
+   692→- Approved template ID.
+   693→- Correct template parameters.
+   694→
+   695→The OTP parameter name must match the template configured in the SMS.ir account.
+   696→
+   697→Do not hardcode API keys or template IDs.
+   698→
+   699→Use server-side environment configuration.
+   700→
+   701→## OTP flow
+   702→
+   703→Implement actual SMS.ir delivery for:
+   704→
+   705→- Mobile login.
+   706→- Registration verification.
+   707→- Password recovery.
+   708→- Other explicitly approved transactional OTP use cases.
+   709→
+   710→Preserve the existing security properties where correct:
+   711→
+   712→- Cryptographically secure OTP generation.
+   713→- Hash-only storage.
+   714→- Single-use grants.
+   715→- Expiration.
+   716→- Attempt limits.
+   717→- Per-mobile rate limits.
+   718→- Per-IP rate limits.
+   719→- Persian and Arabic digit normalization.
+   720→
+   721→Production mode must never return the actual OTP in the API response.
+   722→
+   723→The display-based OTP mode may remain available only in explicitly isolated development/test environments.
+   724→
+   725→If SMS.ir is not configured in production, fail safely and report the configuration problem. Do not silently fall back to displaying OTP codes.
+   726→
+   727→## SMS reliability
+   728→
+   729→Handle:
+   730→
+   731→- Provider errors.
+   732→- Invalid API credentials.
+   733→- Invalid template IDs.
+   734→- Rate limits.
+   735→- Network timeouts.
+   736→- Ambiguous delivery results.
+   737→- Duplicate requests.
+   738→- Outbox retries.
+   739→- Idempotency.
+   740→
+   741→Never log the OTP, API key, or sensitive SMS payload.
+   742→
+   743→The user interface must show accurate delivery states.
+   744→
+   745→---
+   746→
+   747→# 10. Cart and Checkout
+   748→
+   749→Preserve the current cart and quote logic where correct.
+   750→
+   751→Review:
+   752→
+   753→- `src/lib/commerce/cart.ts`
+   754→- `src/lib/commerce/quote.ts`
+   755→- `src/lib/commerce/orders.ts`
+   756→- Cart API routes.
+   757→- Checkout API routes.
+   758→- Payment API routes.
+   759→
+   760→The cart must support:
+   761→
+   762→- Multiple package configurations where allowed.
+   763→- User count.
+   764→- Endpoint count.
+   765→- Contract period.
+   766→- Updated price.
+   767→- Discount.
+   768→- Onboarding.
+   769→- Drive quota information.
+   770→- Removal and editing.
+   771→- Persistent server-side state.
+   772→
+   773→The checkout must display the complete order configuration.
+   774→
+   775→Do not trust client-provided totals.
+   776→
+   777→Recompute prices on the server.
+   778→
+   779→Store immutable snapshots.
+   780→
+   781→Prevent duplicate checkout and duplicate payment finalization.
+   782→
+   783→---
+   784→
+   785→# 11. PostgreSQL and Shared Application Architecture
+   786→
+   787→The final architecture must be documented.
+   788→
+   789→Preferred separation:
+   790→
+   791→- Next.js: customer-facing public website and customer portal.
+   792→- Orchard Core: real CMS administration and AbrIT business administration.
+   793→- PostgreSQL: production database.
+   794→- Nextcloud: Drive storage and account provisioning.
+   795→- SMS.ir: OTP and transactional SMS.
+   796→- ZarinPal Sandbox and Zibal Sandbox: test payment providers.
+   797→
+   798→This separation is acceptable only if it does not create duplicated business data.
+   799→
+   800→Both Next.js and Orchard Core must use the same canonical customer, order, payment, subscription, and Drive account records.
+   801→
+   802→Define:
+   803→
+   804→- Canonical data ownership.
+   805→- Database schema ownership.
+   806→- Migration ownership.
+   807→- API boundaries.
+   808→- Authentication boundaries.
+   809→- Authorization rules.
+   810→- Transaction boundaries.
+   811→- Audit responsibilities.
+   812→
+   813→If the Next.js API remains the owner of commerce operations, Orchard's custom admin modules must access the same records through a documented server-side API or shared data-access contract.
+   814→
+   815→Do not create a second independent database of customers or orders inside Orchard.
+   816→
+   817→Do not use in-memory stores in production.
+   818→
+   819→Do not use SQLite in production.
+   820→
+   821→---
+   822→
+   823→# 12. Admin and Customer Authentication
+   824→
+   825→Keep administrator authentication separate from customer authentication.
+   826→
+   827→- Orchard administrators must authenticate through Orchard Core's identity and authorization system.
+   828→- Customer portal users must use the customer authentication system.
+   829→- Customer roles must never grant Orchard administrator access.
+   830→- Do not reuse customer cookies as Orchard administrator sessions.
+   831→- Ensure secure cookie settings.
+   832→- Ensure CSRF protection for state-changing operations.
+   833→- Ensure correct authorization on all business records.
+   834→
+   835→OTP login must use SMS.ir in production.
+   836→
+   837→---
+   838→
+   839→# 13. UI Requirements
+   840→
+   841→Preserve the current portal's good design direction.
+   842→
+   843→Use:
+   844→
+   845→- Dark navy backgrounds.
+   846→- Strong blue primary colors.
+   847→- Light mode option.
+   848→- Dark mode default.
+   849→- Persian RTL typography.
+   850→- Responsive layout.
+   851→- Smooth page transitions.
+   852→- Useful loading skeletons.
+   853→- Empty states.
+   854→- Error states.
+   855→- Accessible forms.
+   856→- Consistent cards and tables.
+   857→
+   858→Do not use green as the primary brand background.
+   859→
+   860→The customer portal must keep its right-side navigation.
+   861→
+   862→The Orchard Admin Theme must be visually consistent with AbrIT but must remain a real Orchard Core theme.
+   863→
+   864→Do not rebuild the Orchard administration UI in React.
+   865→
+   866→## Pricing page improvements
+   867→
+   868→Every plan card must clearly show:
+   869→
+   870→- Plan name.
+   871→- Monthly base price.
+   872→- Included users.
+   873→- Included endpoints.
+   874→- Additional user fee.
+   875→- Additional endpoint fee.
+   876→- SLA.
+   877→- Support hours.
+   878→- Included Drive storage.
+   879→- Main service benefits.
+   880→
+   881→Add an obvious purchase/configuration action.
+   882→
+   883→The plan detail page must expose user and endpoint controls.
+   884→
+   885→The customer must be able to see the free 100 MB Drive trial and the paid plan quota.
+   886→
+   887→---
+   888→
+   889→# 14. Security Review
+   890→
+   891→Review the entire system for:
+   892→
+   893→- Broken access control.
+   894→- Insecure direct object references.
+   895→- Customer data leakage.
+   896→- Admin permission bypass.
+   897→- CSRF.
+   898→- XSS.
+   899→- Open redirects.
+   900→- SQL injection.
+   901→- Unsafe file uploads.
+   902→- OTP abuse.
+   903→- Password recovery abuse.
+   904→- Payment callback spoofing.
+   905→- Payment replay.
+   906→- Duplicate transactions.
+   907→- Duplicate Drive provisioning.
+   908→- Secret leakage.
+   909→- Sensitive logging.
+   910→- Production configuration mistakes.
+   911→
+   912→Never expose:
+   913→
+   914→- SMS.ir API key.
+   915→- Payment merchant credentials.
+   916→- Nextcloud administrator password.
+   917→- Database connection strings.
+   918→- Session secrets.
+   919→- OTP values.
+   920→
+   921→The uploaded repository contains an `.env` file. Do not copy its values into source files, logs, documentation, screenshots, or reports.
+   922→
+   923→If any real credentials were included in the uploaded archive, report this so they can be rotated.
+   924→
+   925→---
+   926→
+   927→# 15. Required Automated Tests
+   928→
+   929→Create or update automated tests.
+   930→
+   931→## Orchard
+   932→
+   933→- Actual `/admin` responds from Orchard Core.
+   934→- AbrIT Admin Theme is active.
+   935→- Content management works.
+   936→- Media Library works.
+   937→- Users and Roles work.
+   938→- AbrIT custom admin pages load.
+   939→- Permissions prevent customer access.
+   940→
+   941→## PostgreSQL
+   942→
+   943→- Application connects to PostgreSQL.
+   944→- Migrations apply successfully.
+   945→- Unique constraints work.
+   946→- Concurrent requests do not create duplicate orders or Drive accounts.
+   947→- No production fallback to SQLite or in-memory storage exists.
+   948→
+   949→## Pricing
+   950→
+   951→- 1-month contract.
+   952→- 3-month contract.
+   953→- 6-month contract.
+   954→- All five SLA mappings.
+   955→- Included users.
+   956→- Extra users.
+   957→- Included endpoints.
+   958→- Extra endpoints.
+   959→- Drive quota mapping.
+   960→- Custom assessment limits.
+   961→- Toman calculations.
+   962→- Discounts and onboarding.
+   963→
+   964→## Payments
+   965→
+   966→- ZarinPal Sandbox request.
+   967→- ZarinPal Sandbox callback.
+   968→- ZarinPal Sandbox verification.
+   969→- Zibal Sandbox request.
+   970→- Zibal Sandbox callback.
+   971→- Zibal Sandbox verification.
+   972→- Invalid callback.
+   973→- Incorrect amount.
+   974→- Duplicate callback.
+   975→- Replayed callback.
+   976→- Cancelled payment.
+   977→- Failed payment.
+   978→- Ambiguous verification.
+   979→- Successful redirect back to AbrIT.
+   980→- Correct order finalization.
+   981→- Mellat is rejected.
+   982→
+   983→## SMS
+   984→
+   985→- OTP request.
+   986→- SMS.ir Verify API request.
+   987→- Incorrect API key.
+   988→- Invalid template.
+   989→- Provider timeout.
+   990→- OTP expiration.
+   991→- Incorrect OTP.
+   992→- Repeated OTP.
+   993→- Rate limits.
+   994→- No OTP returned in production mode.
+   995→
+   996→## Drive
+   997→
+   998→- Free 100 MB account provisioning.
+   999→- Actual Nextcloud login.
+  1000→- Paid plan quota update.
+  1001→- Duplicate username.
+  1002→- Duplicate provisioning.
+  1003→- Disabled account.
+  1004→- Re-enabled account.
+  1005→- Actual quota retrieval.
+  1006→- Nextcloud unavailable.
+  1007→- No credential leakage.
+  1008→
+  1009→---
+  1010→
+  1011→# 16. Production Deployment Requirements
+  1012→
+  1013→This application is intended for Production.
+  1014→
+  1015→Do not stop after making the preview look good.
+  1016→
+  1017→Prepare:
+  1018→
+  1019→- PostgreSQL production configuration.
+  1020→- Environment variable documentation.
+  1021→- Orchard Core production startup.
+  1022→- Next.js production startup.
+  1023→- Reverse proxy routing.
+  1024→- HTTPS.
+  1025→- Secure cookies.
+  1026→- Database migrations.
+  1027→- Health checks.
+  1028→- Structured logging.
+  1029→- Backup guidance.
+  1030→- Deployment documentation.
+  1031→
+  1032→The routing must be verified in the actual deployed environment.
+  1033→
+  1034→The final public URLs must be real paths, not merely hash-router aliases.
+  1035→
+  1036→The real Orchard Core application must own `/admin`.
+  1037→
+  1038→If the existing Next.js routing conflicts with Orchard, change the routing architecture. Do not compromise the Orchard requirement to preserve the old hash router.
+  1039→
+  1040→Do not deploy production credentials or switch real payment processing on.
+  1041→
+  1042→---
+  1043→
+  1044→# 17. Required Execution Order
+  1045→
+  1046→Work in this order:
+  1047→
+  1048→1. Full repository audit.
+  1049→2. Architecture and routing decision.
+  1050→3. Activate the real Orchard Core application.
+  1051→4. Register and activate AbrITAdminTheme.
+  1052→5. Make `/admin` serve actual Orchard Core.
+  1053→6. Configure PostgreSQL for production.
+  1054→7. Establish shared business data ownership.
+  1055→8. Correct commercial contract periods and SLA values.
+  1056→9. Improve user/endpoint configuration UI.
+  1057→10. Make Drive trial and paid quotas visible.
+  1058→11. Complete actual Nextcloud OCS provisioning.
+  1059→12. Implement ZarinPal Sandbox.
+  1060→13. Implement Zibal Sandbox.
+  1061→14. Disable Mellat.
+  1062→15. Implement SMS.ir Verify delivery.
+  1063→16. Complete cart and checkout integration.
+  1064→17. Run security and integration tests.
+  1065→18. Verify responsive UI.
+  1066→19. Prepare production deployment documentation.
+  1067→
+  1068→Do not begin by creating another custom admin dashboard.
+  1069→
+  1070→Do not spend time polishing the fake React `/admin` page.
+  1071→
+  1072→---
+  1073→
+  1074→# 18. Final Acceptance Criteria
+  1075→
+  1076→The work is accepted only when all of these are true:
+  1077→
+  1078→- [ ] `/admin` serves the real Orchard Core administration application.
+  1079→- [ ] The real Orchard Core Admin Theme is `AbrITAdminTheme`.
+  1080→- [ ] Orchard Content Management works.
+  1081→- [ ] Orchard Media Library works.
+  1082→- [ ] Orchard Users, Roles, and Permissions work.
+  1083→- [ ] AbrIT business administration is integrated into Orchard.
+  1084→- [ ] The old React admin imitation is no longer used as the CMS.
+  1085→- [ ] The customer portal remains functional and multi-page.
+  1086→- [ ] Production database is PostgreSQL.
+  1087→- [ ] No SQLite production fallback remains.
+  1088→- [ ] Contract periods are exactly 1, 3, and 6 months.
+  1089→- [ ] SLA values match the latest specified five-plan mapping.
+  1090→- [ ] User and endpoint quantity controls are clearly accessible.
+  1091→- [ ] Drive free 100 MB trial is visible.
+  1092→- [ ] Paid plan Drive quotas are visible and correctly applied.
+  1093→- [ ] Nextcloud account provisioning uses the OCS API.
+  1094→- [ ] ZarinPal Sandbox works through actual request and verification APIs.
+  1095→- [ ] Zibal Sandbox works through actual request and verification APIs.
+  1096→- [ ] Bank Mellat is disabled.
+  1097→- [ ] Payment callbacks return the customer to AbrIT.
+  1098→- [ ] Payment success is determined by server-side verification.
+  1099→- [ ] SMS.ir sends actual OTP messages in configured production mode.
+  1100→- [ ] Production OTP is never returned to the browser.
+  1101→- [ ] Cart and checkout use server-calculated prices.
+  1102→- [ ] No fake payment success or fake Drive status is shown.
+  1103→- [ ] Automated tests pass.
+  1104→- [ ] Production build succeeds without ignored TypeScript errors.
+  1105→- [ ] Screenshots and test evidence are provided.
+  1106→
+  1107→**FINAL WARNING: A visually attractive React dashboard is NOT an acceptable substitute for Orchard Core. The actual Orchard Core application, actual Orchard Admin Theme, and actual Orchard administration routes are mandatory. If the final `/admin` page is still served by the Next.js custom admin components, the implementation is rejected.**
