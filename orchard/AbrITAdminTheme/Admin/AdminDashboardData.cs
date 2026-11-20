@@ -18,6 +18,19 @@ public sealed class AdminDashboardData
     public string BackgroundJobs { get; init; } = "—";
     public string DriveConfiguration { get; init; } = "وضعیت بررسی نشده";
     public bool RegistrationDatesAvailable { get; init; }
+
+    /// <summary>
+    /// True when the SMS/failed-payment metrics come from a real source.
+    /// The dashboard hides those KPI cards when false instead of rendering
+    /// permanently-unavailable placeholders (audit UI-8).
+    /// </summary>
+    public bool SmsMetricsAvailable { get; init; }
+
+    /// <summary>Set when the whole commerce data source is unreachable — the
+    /// dashboard renders ONE notice instead of eight identical error cards.</summary>
+    public bool Unavailable { get; init; }
+    public string UnavailableReason { get; init; } = "";
+
     public IReadOnlyList<DashboardCustomer> RecentCustomers { get; init; } = [];
     public IReadOnlyList<DashboardOrder> RecentOrders { get; init; } = [];
 }

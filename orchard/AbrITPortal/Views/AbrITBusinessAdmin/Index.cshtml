@@ -21,7 +21,7 @@
         <article class="abrit-ops__stat"><span>اشتراک‌های فعال</span><strong>@Model.ActiveSubscriptions</strong><small>اشتراک‌های جاری</small></article>
         <article class="abrit-ops__stat"><span>سفارش‌های جدید</span><strong>@Model.NewOrders</strong><small>۳۰ روز اخیر</small></article>
         <article class="abrit-ops__stat"><span>در انتظار پرداخت</span><strong>@Model.PendingPayments</strong><small>سفارش‌های پرداخت‌نشده</small></article>
-        <article class="abrit-ops__stat"><span>درآمد تأییدشده</span><strong>@Model.ConfirmedRevenueToman.ToString("N0")</strong><small>تومان — فقط تراکنش‌های تأیید سمت سرور</small></article>
+        <article class="abrit-ops__stat"><span>درآمد تأییدشده</span><strong>@ViewFormats.FaToman(Model.ConfirmedRevenueToman)</strong><small>تومان — فقط تراکنش‌های تأیید سمت سرور</small></article>
         <article class="abrit-ops__stat"><span>حساب‌های فعال Drive</span><strong>@Model.ActiveDriveAccounts</strong><small>AbrIT Drive (Nextcloud)</small></article>
         <article class="abrit-ops__stat"><span>تیکت‌های باز</span><strong>@Model.PendingTickets</strong><small>پشتیبانی در انتظار پاسخ</small></article>
     </section>

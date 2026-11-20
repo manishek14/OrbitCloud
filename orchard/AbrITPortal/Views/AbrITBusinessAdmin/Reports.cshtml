@@ -5,7 +5,7 @@
 
     <section class="abrit-ops__stats">
         <article class="abrit-ops__stat"><span>سفارش‌های پرداخت‌شده</span><strong>@Model.TotalPaidOrders</strong></article>
-        <article class="abrit-ops__stat"><span>درآمد کل (تومان)</span><strong>@Model.TotalRevenueToman.ToString("N0")</strong></article>
+        <article class="abrit-ops__stat"><span>درآمد کل (تومان)</span><strong>@ViewFormats.FaToman(Model.TotalRevenueToman)</strong></article>
     </section>
 
     <div class="abrit-ops__grid">
@@ -14,7 +14,7 @@
             <ul class="abrit-ops__status-list">
                 @foreach (var m in Model.RevenueByMonth)
                 {
-                    <li><span dir="ltr">@m.Month</span><strong>@m.TotalToman.ToString("N0") تومان (@m.OrderCount سفارش)</strong></li>
+                    <li><span dir="ltr">@m.Month</span><strong>@ViewFormats.FaToman(m.TotalToman) تومان (@m.OrderCount سفارش)</strong></li>
                 }
             </ul>
         </section>

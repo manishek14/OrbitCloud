@@ -370,7 +370,7 @@ export default function RegisterView() {
                   <button
                     type="button"
                     onClick={() => copyToClipboard(demoCode, "کد تأیید کپی شد.")}
-                    className="shrink-0 rounded-lg border border-warning/40 p-1.5 transition-colors hover:bg-warning/20"
+                    className="shrink-0 rounded-lg border border-warning/40 p-2 transition-colors hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     aria-label="کپی کد تأیید"
                   >
                     <Copy className="size-3.5" />

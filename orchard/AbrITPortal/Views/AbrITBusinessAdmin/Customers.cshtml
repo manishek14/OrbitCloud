@@ -30,7 +30,7 @@
                         <td><a href="/Admin/AbrIT/Customers/@c.Id"><strong>@(c.Name ?? "—")</strong><small dir="ltr">@c.Email</small></a></td>
                         <td dir="ltr">@(c.Mobile ?? "—")</td>
                         <td>@c.OrderCount</td>
-                        <td>@c.PaidTotalToman.ToString("N0")</td>
+                        <td>@ViewFormats.FaToman(c.PaidTotalToman)</td>
                         <td>@(c.HasDrive ? "فعال" : "—")</td>
                         <td>@(c.ActiveSubscription ?? "—")</td>
                         <td><span class="abrit-status-badge @(c.Status == "active" ? "is-active" : "is-muted")">@(c.Status == "active" ? "فعال" : "غیرفعال")</span></td>

@@ -142,7 +142,7 @@ export default function ForgotPasswordView() {
               <button
                 type="button"
                 onClick={() => copyToClipboard(result.code as string, "کد بازیابی کپی شد.")}
-                className="shrink-0 rounded-lg border border-warning/40 p-1.5 transition-colors hover:bg-warning/20"
+                className="shrink-0 rounded-lg border border-warning/40 p-2 transition-colors hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 aria-label="کپی کد بازیابی"
               >
                 <Copy className="size-3.5" />

@@ -36,24 +36,29 @@ public sealed class OperationsDashboardDataProvider(CommerceApiClient commerce) 
 
         return new AdminDashboardData
         {
-            Customers = totals.Customers.ToString("N0"),
-            Orders = totals.NewOrders.ToString("N0"),
-            PendingOrders = totals.PendingPayments.ToString("N0"),
-            ActiveServices = totals.ActiveSubscriptions.ToString("N0"),
-            PaymentAttempts = totals.PendingPayments.ToString("N0"),
-            FailedPayments = "دادهٔ معتبر موجود نیست",
-            SmsQueue = "دادهٔ معتبر موجود نیست",
-            FailedSms = "دادهٔ معتبر موجود نیست",
-            BackgroundJobs = "دادهٔ معتبر موجود نیست",
-            DriveConfiguration = totals.ActiveDriveAccounts.ToString("N0") + " حساب فعال",
+            Customers = Fa(totals.Customers),
+            Orders = Fa(totals.NewOrders),
+            PendingOrders = Fa(totals.PendingPayments),
+            ActiveServices = Fa(totals.ActiveSubscriptions),
+            PaymentAttempts = Fa(totals.PendingPayments),
+            // SMS / failed-payment metrics have no wired data source yet —
+            // flagged so the dashboard hides those cards instead of showing
+            // permanently-unavailable placeholders (audit UI-8).
+            SmsMetricsAvailable = false,
+            DriveConfiguration = Fa(totals.ActiveDriveAccounts) + " حساب فعال",
             RegistrationDatesAvailable = false,
             RecentOrders = Array.Empty<DashboardOrder>(),
             RecentCustomers = Array.Empty<DashboardCustomer>(),
         };
     }
 
+    // Persian digits for KPI values (audit UI-6 — one numeral system).
+    private static string Fa(int value) => ViewFormats.FaNumber(value);
+
     private static AdminDashboardData Unavailable(string reason) => new()
     {
+        Unavailable = true,
+        UnavailableReason = reason,
         Customers = reason,
         Orders = reason,
         PendingOrders = reason,
