@@ -93,6 +93,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Final-audit closure FSR-11: validate BOTH compose renderings with the
+      # REAL `docker compose config` (client-side — no daemon containers are
+      # started) and assert the deployment contract on the rendered output:
+      # required portal environment variables, PORTAL_BIND loopback default /
+      # dev-override replacement, no unwanted public ports, network + volume
+      # topology, and the Compose v2.24.0 floor required by the dev
+      # override's `!override` tag.
+      - name: Validate docker compose configuration (real docker compose config)
+        run: bash docker/validate-compose.sh
+
       - name: Build portal image
         run: docker build -t abrit-portal:ci .
 
