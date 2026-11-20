@@ -103,6 +103,15 @@ jobs:
       - name: Validate docker compose configuration (real docker compose config)
         run: bash docker/validate-compose.sh
 
+      # Compose-validation closure FSR-13: prove the compose validation is
+      # ISOLATED from any project .env — a sandboxed adversarial .env must
+      # NOT change what the default-value checks observe. The self-test first
+      # shows with a control render (without --env-file) that the adversarial
+      # .env really does leak into interpolation, then re-runs the full
+      # validation against the sandbox and asserts every check still passes.
+      - name: Compose validation .env isolation self-test (FSR-13)
+        run: bash docker/validate-compose.sh --self-test
+
       - name: Build portal image
         run: docker build -t abrit-portal:ci .
 

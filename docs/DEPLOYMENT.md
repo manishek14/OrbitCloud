@@ -12,10 +12,13 @@ This guide deploys the complete stack with Docker Compose:
 > (`docker-compose.yml` alone and base + `docker/compose.dev.yml`) are
 > validated with the REAL `docker compose config` CLI — locally with Docker
 > Engine 27.5.1 / Compose v2.34.0 and on every CI run (see
-> `docker/validate-compose.sh`). Both container images are really built in
-> CI. A full `docker compose up` of the live stack was NOT exercised by the
-> authoring environment (no Docker daemon there) — first boot happens on
-> your machine; report any deviation.
+> `docker/validate-compose.sh`). Since the compose-validation closure
+> (FSR-13) every render is pinned to an EMPTY temporary env file, so a real
+> `.env` on the validating machine can never influence what the validation
+> observes. Both container images are really built in CI. A full
+> `docker compose up` of the live stack was NOT exercised by the authoring
+> environment (no Docker daemon there) — first boot happens on your machine;
+> report any deviation.
 
 ---
 
@@ -23,18 +26,34 @@ This guide deploys the complete stack with Docker Compose:
 
 - **Docker Engine 24 or newer.** Compose orchestration is client-side, so any
   Engine that runs the images works; validation used Engine 27.5.1 and the
-  GitHub Actions runner's preinstalled Engine.
-- **Docker Compose v2.24.0 or newer** (`docker compose version`). This floor
-  is REQUIRED, not cosmetic: `docker/compose.dev.yml` uses the `!override`
-  YAML tag on the published ports, which Compose only supports since v2.24.0.
-  Empirically verified: Compose v2.23.3 and v2.20.3 render the dev override
-  WITHOUT an error but silently MERGE the port lists (both `0.0.0.0:3000`
-  AND `127.0.0.1:3000`), which then fails at `up` time with "port is already
-  allocated". The base `docker-compose.yml` alone renders identically on
-  older Compose v2 releases (verified against v2.20.3/v2.23.3/v2.34.0), but
-  v2.24+ everywhere is the supported configuration. Docker Engine 25+
-  bundles Compose ≥ 2.24 as a plugin; on Engine 24 install the standalone
-  `docker-compose` v2.24+ binary or a newer plugin.
+  GitHub Actions runner's preinstalled Engine. The Engine version alone
+  proves NOTHING about the installed Compose version — see the next bullet.
+- **Docker Compose v2.24.0 or newer — the binding requirement.** Check the
+  version of the ACTUALLY installed plugin with `docker compose version`;
+  never infer it from the Engine version: which Compose a host carries
+  depends on the package, the distribution channel and when it was last
+  updated, so an Engine 25+ host can still carry an older Compose plugin.
+  (For reference only: the official Docker Engine 25.0.0 release notes
+  record that that specific release's docker-ce packaging shipped Compose
+  v2.24.1 — docker/docker-ce-packaging#980 — with 25.0.x patch releases
+  later shipping 2.24.2/2.24.5/2.24.7. This is a statement about those
+  releases' official packaging, NOT a guarantee for every Engine 25+
+  install method or operating system; see
+  https://docs.docker.com/engine/release-notes/25.0/.)
+  This floor is REQUIRED, not cosmetic: `docker/compose.dev.yml` uses the
+  `!override` YAML tag on the published ports, which Compose only supports
+  since v2.24.0. Empirically verified: Compose v2.23.3 and v2.20.3 render
+  the dev override WITHOUT an error but silently MERGE the port lists (both
+  `0.0.0.0:3000` AND `127.0.0.1:3000`), which then fails at `up` time with
+  "port is already allocated". The base `docker-compose.yml` alone renders
+  identically on older Compose v2 releases (verified against
+  v2.20.3/v2.23.3/v2.34.0), but v2.24+ everywhere is the supported
+  configuration. If `docker compose version` reports anything older than
+  v2.24.0, update the Compose plugin (for example
+  `apt-get install --only-upgrade docker-compose-plugin`,
+  `dnf update docker-compose-plugin`, or reinstall the plugin per
+  docs.docker.com) or install the standalone Compose v2 binary before using
+  the dev override.
 - `jq` is only needed if you run `docker/validate-compose.sh` yourself.
 - 2 GB+ free RAM for the stack; ~4 GB disk for images
 - For production: a public HTTPS origin with TLS termination (reverse proxy
@@ -76,7 +95,12 @@ output:
   documented loopback mappings,
 - the CMS reaches the portal internally at `http://portal:3000`,
 - the `abrit` network and the four named volumes exist in both renderings,
-- the Compose version meets the v2.24.0 floor.
+- the Compose version meets the v2.24.0 floor,
+- every render is pinned to an EMPTY temporary env file (`--env-file`), so a
+  real project `.env` on the validating machine can never change what the
+  default-value checks observe (FSR-13) — and `--self-test` proves it with a
+  sandboxed adversarial `.env` (control render without `--env-file` shows
+  the leak, the isolated run shows the defaults).
 
 Run it locally any time:
 
@@ -353,8 +377,9 @@ docker run --rm --volumes-from abrit-cms -v "$PWD":/backup alpine \
 
 ## 8. Production checklist
 
-- [ ] `docker compose version` reports **v2.24.0 or newer** (the dev
-      override's `!override` tag floor — see §1; run
+- [ ] `docker compose version` — the ACTUALLY installed plugin — reports
+      **v2.24.0 or newer** (the dev override's `!override` tag floor; the
+      Engine version alone does not prove this — see §1. Run
       `bash docker/validate-compose.sh` for the full machine-checked
       contract).
 - [ ] TLS terminates in front of `portal`; `ABRIT_PAYMENTS_PUBLIC_BASE_URL`
