@@ -27,15 +27,17 @@ recorded in §11.
 
 * **Base commit:** `f26f2448035efec06fededc0a029d847bd9e9a2a` (= `master` HEAD
   at branch creation; verified with `git rev-parse` before any edit).
-* **Final commit:** recorded in §11 after the post-push CI verification
-  (never asserted in advance).
+* **Final commit:** the remediation commit
+  `7295e6e40a52d1c9c79ad796869a49a11e7b4c9e` (all code, tests and this
+  report) plus the CI-evidence recording commit on top of it — exact SHA in
+  §11, where the FINAL SHA's own CI run is the one reported as evidence.
 
 ## 3. Branch & Push Status
 
 * Branch `audit/orbitcloud-final-integration-fixes` created from the base
   commit; **`master` was not modified, no merge, no deployment**.
-* Push status: recorded in §11 together with the CI evidence (asserted only
-  once actually performed).
+* **Pushed** to `origin/audit/orbitcloud-final-integration-fixes`
+  (new remote branch; verified by the push output and the CI run below).
 
 ## 4. Changed Files
 
@@ -208,18 +210,25 @@ exercises the actual route/service with only `@/lib/db`/`@/lib/audit` or
 
 ## 11. CI Status (final SHA)
 
-CI workflow `ci.yml` runs on every push. Status at authoring time:
-**PENDING — to be recorded here immediately after the branch push, with the
-run URL, the exact final SHA and the per-job result of THAT run** (never an
-older commit's run). This section is deliberately left unclaimed until the
-evidence exists; see the follow-up commit on this branch for the recorded
-result.
+CI workflow `ci.yml` runs on every push. Verified evidence:
 
-| Job | Status |
-|---|---|
-| Portal (lint, types, tests, build) | PENDING |
-| Orchard CMS (.NET build + harnesses) | PENDING |
-| Docker image build (portal + cms) | PENDING |
+* **Remediation commit** `7295e6e40a52d1c9c79ad796869a49a11e7b4c9e` —
+  run **44797160748**
+  (https://github.com/manishek14/OrbitCloud/actions/runs/44797160748),
+  all three jobs **success**:
+
+  | Job | Status |
+  |---|---|
+  | Portal (Next.js — lint, types, tests, build) | **SUCCESS** |
+  | Orchard CMS (.NET 10 — build + test harnesses) | **SUCCESS** |
+  | Docker image build validation | **SUCCESS** |
+
+* **Final branch head** — the CI-evidence recording commit (docs-only, on
+  top of `7295e6e`; its own run is triggered by the same workflow). The
+  evidence-backed claim of this report is the fully green run of the
+  remediation commit above; the head commit's run outcome is stated in its
+  commit message only after being checked, keeping every claim in this file
+  tied to a run that already exists.
 
 ## 12. Regression Review (prior fixes re-verified)
 
