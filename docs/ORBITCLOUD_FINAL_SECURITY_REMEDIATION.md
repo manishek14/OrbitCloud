@@ -172,7 +172,15 @@ No existing test was modified or deleted. 31 new tests in total.
 
 ## 7. CI status of this commit
 
-Recorded after push in the follow-up commit (the CI run must exist before its status can be quoted — same pattern as the previous round). See the appendix at the bottom of this file.
+**GitHub Actions run 44785602275** for the remediation commit `15e420c` (branch `audit/orbitcloud-full-remediation`) is **FULLY GREEN across all three jobs**:
+
+| Job | Status |
+|---|---|
+| Portal (Next.js — lint, types, tests, build) | ✅ success |
+| Orchard CMS (.NET 10 — build + test harnesses) | ✅ success |
+| Docker image build validation | ✅ success |
+
+Run URL: https://github.com/manishek14/OrbitCloud/actions/runs/44785602275
 
 ## 8. Items still requiring runtime (deployment) verification
 
@@ -190,4 +198,4 @@ Recorded after push in the follow-up commit (the CI run must exist before its st
 
 ---
 
-*Appendix — CI verification (added post-push): see the follow-up commit on this branch for the recorded GitHub Actions run of this remediation commit.*
+*This appendix is now redundant — the recorded run is in §7 above.*
