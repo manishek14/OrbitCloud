@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     await requireAdminAccess("subscriptions.view", request);
     const subs = await db.subscription.findMany({
       orderBy: { createdAt: "desc" },
+      // Bounded operational window (audit §3.3).
+      take: 500,
       include: { user: { select: { email: true, name: true } } },
     });
     return NextResponse.json(

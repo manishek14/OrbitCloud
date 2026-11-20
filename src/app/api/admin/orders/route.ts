@@ -13,6 +13,9 @@ export async function GET(request: Request) {
     const orders = await db.order.findMany({
       where: status ? { status } : undefined,
       orderBy: { createdAt: "desc" },
+      // Bounded operational window (audit §3.3): the admin list renders the
+      // most recent 500 records instead of an unbounded table scan.
+      take: 500,
       include: { user: { select: { id: true, email: true, name: true } } },
     });
     const result: AdminOrderDTO[] = orders.map((o) => ({

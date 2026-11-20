@@ -137,6 +137,13 @@ services:
       OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}
       OrchardCore__Default__DatabaseProvider: Postgres
 
+      # Durable SMS outbox (full-remediation audit §4.5): the CMS-local SMS
+      # queue is stored in the same PostgreSQL instance so queued messages
+      # survive restarts. The table is created lazily on first use. Note:
+      # live SMS.ir sends still require explicit provider authorization —
+      # production OTP delivery runs in the portal, not the CMS.
+      AbrIT__SmsDatabase: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}
+
       # Operator-only admin bootstrap (docker compose exec cms dotnet
       # AbrITPortal.dll --abrit-admin-bootstrap). The opt-in flag keeps the
       # guard from the codebase: production normally uses the secure setup flow.

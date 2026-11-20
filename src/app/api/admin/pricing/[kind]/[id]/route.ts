@@ -8,7 +8,7 @@ const kindOf = (kind: string) => kind === "plans" || kind === "contracts" ? kind
 
 export async function PUT(request: Request, context: Context) {
   try {
-    await requireAdminAccess("settings.manage", request);
+    await requireAdminAccess("pricing.manage", request);
     const { kind: raw, id } = await context.params;
     const kind = kindOf(raw);
     if (!kind) return apiError(404, "NOT_FOUND", "بخش یافت نشد.");
@@ -22,7 +22,7 @@ export async function PUT(request: Request, context: Context) {
 
 export async function DELETE(request: Request, context: Context) {
   try {
-    await requireAdminAccess("settings.manage", request);
+    await requireAdminAccess("pricing.manage", request);
     const { kind: raw, id } = await context.params;
     const kind = kindOf(raw);
     if (!kind) return apiError(404, "NOT_FOUND", "بخش یافت نشد.");

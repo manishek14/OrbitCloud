@@ -136,7 +136,9 @@ describe("zarinpal adapter (sandbox, mocked fetch)", () => {
   });
 
   test("verify: code 100 → ok (paid now)", async () => {
-    const calls = installFetchMock(() => ({ data: { code: 100, ref_id: 12345 } }));
+    // ZarinPal's verify response includes the paid amount in Rial — the
+    // cross-check against the stored Toman amount is mandatory.
+    const calls = installFetchMock(() => ({ data: { code: 100, ref_id: 12345, amount: 843_750_000 } }));
     const gateway = providers.getProvider("zarinpal");
     if (!gateway) throw new Error("zarinpal provider missing");
 
@@ -153,7 +155,7 @@ describe("zarinpal adapter (sandbox, mocked fetch)", () => {
   });
 
   test("verify: code 101 → ok + alreadyVerified (idempotent duplicate)", async () => {
-    installFetchMock(() => ({ data: { code: 101, ref_id: 12345 } }));
+    installFetchMock(() => ({ data: { code: 101, ref_id: 12345, amount: 195_000_000 } }));
     const gateway = providers.getProvider("zarinpal");
     if (!gateway) throw new Error("zarinpal provider missing");
     const outcome = assertOk(
@@ -195,6 +197,39 @@ describe("zarinpal adapter (sandbox, mocked fetch)", () => {
     expect(
       assertFailed(await gateway.verify({ amountToman: 1_000, gatewayRef: "g3" })).reason,
     ).toBe("ambiguous");
+  });
+
+  // Full-remediation audit §3.4: a "success" response WITHOUT a verifiable
+  // integer amount used to skip the cross-check entirely and finalize the
+  // payment. The amount is now mandatory on success outcomes.
+  test("verify: success code but MISSING amount → amount_mismatch (never finalized)", async () => {
+    const gateway = providers.getProvider("zarinpal");
+    if (!gateway) throw new Error("zarinpal provider missing");
+
+    installFetchMock(() => ({ data: { code: 100, ref_id: 777 } }));
+    expect(
+      assertFailed(await gateway.verify({ amountToman: 1_000_000, gatewayRef: "no-amount" })).reason,
+    ).toBe("amount_mismatch");
+
+    // Non-numeric / zero amounts are equally unverifiable.
+    installFetchMock(() => ({ data: { code: 100, ref_id: 778, amount: "not-a-number" } }));
+    expect(
+      assertFailed(await gateway.verify({ amountToman: 1_000_000, gatewayRef: "bad-amount" })).reason,
+    ).toBe("amount_mismatch");
+
+    installFetchMock(() => ({ data: { code: 100, ref_id: 779, amount: 0 } }));
+    expect(
+      assertFailed(await gateway.verify({ amountToman: 1_000_000, gatewayRef: "zero-amount" })).reason,
+    ).toBe("amount_mismatch");
+  });
+
+  test("verify: success code with a DIFFERENT amount → amount_mismatch", async () => {
+    const gateway = providers.getProvider("zarinpal");
+    if (!gateway) throw new Error("zarinpal provider missing");
+    installFetchMock(() => ({ data: { code: 100, ref_id: 780, amount: 1 } }));
+    expect(
+      assertFailed(await gateway.verify({ amountToman: 1_000_000, gatewayRef: "wrong-amount" })).reason,
+    ).toBe("amount_mismatch");
   });
 });
 

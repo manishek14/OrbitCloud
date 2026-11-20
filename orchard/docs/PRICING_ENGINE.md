@@ -54,7 +54,7 @@ Formula summary:
 
 ## Admin & preview
 
-`CommercialPlansAdminController` (`/Admin/AbrIT/Commercial/Plans`, `[Admin]`, Administrator role, antiforgery) lists/edits plans and contracts, persists via `ICommercialRulesService`, and offers server-side JSON preview (`POST Preview`) calling the same engine.
+`AbrITBusinessAdminController` (`/Admin/AbrIT/Plans`, `[Admin]`, Administrator role, antiforgery; full-remediation audit: stale name corrected) lists/edits plans and contracts, persists via `ICommercialRulesService`, and offers server-side JSON preview (`POST Preview`) calling the same engine.
 
 ## Notes
 

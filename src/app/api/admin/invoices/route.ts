@@ -10,6 +10,8 @@ export async function GET(request: Request) {
     await requireAdminAccess("orders.view", request);
     const invoices = await db.invoice.findMany({
       orderBy: { issuedAt: "desc" },
+      // Bounded operational window (audit §3.3).
+      take: 500,
       include: { order: true },
     });
     return NextResponse.json(invoices.map(toInvoiceDTO));

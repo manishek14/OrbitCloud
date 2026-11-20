@@ -34,6 +34,8 @@ if (builder.Environment.IsProduction())
         .PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 }
 
+ISmsOutboxStore smsOutboxStore = new InMemorySmsOutboxStore(); // possibly replaced below
+
 builder.Services.AddOrchardCms().ConfigureServices(services =>
 {
     if (builder.Environment.IsProduction())
@@ -81,12 +83,15 @@ builder.Services.AddOrchardCms().ConfigureServices(services =>
 
     // SMS outbox for the Orchard-local identity flows: durable PostgreSQL
     // storage when a connection string is configured (AbrIT:SmsDatabase),
-    // in-memory only in isolated development.
+    // in-memory only in isolated development. The compose stack wires
+    // AbrIT__SmsDatabase to the Orchard database in production, so the
+    // outbox survives restarts; a Production deployment without it gets a
+    // LOUD startup warning (full-remediation audit §4.5 — never silently
+    // non-durable in production).
     var smsDatabase = builder.Configuration["AbrIT:SmsDatabase"];
     if (!string.IsNullOrWhiteSpace(smsDatabase))
-        services.AddSingleton<ISmsOutboxStore>(new PostgresSmsOutboxStore(smsDatabase));
-    else
-        services.AddSingleton<ISmsOutboxStore, InMemorySmsOutboxStore>();
+        smsOutboxStore = new PostgresSmsOutboxStore(smsDatabase);
+    services.AddSingleton<ISmsOutboxStore>(smsOutboxStore);
     services.AddSingleton<ISmsProviderV2, MockSmsProviderV2>();
     services.AddSingleton<ISmsProviderV2, SmsIrProvider>();
     services.AddScoped<ISmsOutboxService, SmsOutboxService>();
@@ -124,6 +129,17 @@ if (args.Contains("--abrit-maintenance") || args.Contains("--abrit-identity-setu
     builder.WebHost.UseUrls("http://127.0.0.1:0");
 
 var app = builder.Build();
+
+// Full-remediation audit §4.5: a Production deployment running the SMS
+// outbox in-memory is a deployment mistake (queued messages are lost on
+// restart). Say so loudly instead of failing silently later.
+if (app.Environment.IsProduction() && smsOutboxStore is InMemorySmsOutboxStore)
+{
+    app.Logger.LogWarning(
+        "AbrIT:SmsDatabase is NOT configured — the SMS outbox is IN-MEMORY and NOT durable. " +
+        "Queued messages are lost on restart. Configure AbrIT:SmsDatabase (docker-compose: AbrIT__SmsDatabase) " +
+        "to enable the PostgreSQL-backed outbox.");
+}
 
 // Behind the deployment reverse proxy the public scheme is HTTPS while the app
 // receives plain HTTP. Honor X-Forwarded-Proto (loopback proxy only) so

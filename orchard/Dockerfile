@@ -50,6 +50,11 @@ COPY --chmod=0755 docker/cms-entrypoint.sh /usr/local/bin/cms-entrypoint
 # Orchard runtime state (tenants, media, uploaded content) survives restarts
 VOLUME /app/App_Data
 
+# Full-remediation audit §7: image-level healthcheck (compose already had one;
+# this covers bare `docker run` usage too). /admin responds 200/30x for curl -f.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=20 \
+  CMD curl -fsS http://127.0.0.1:5000/admin >/dev/null || exit 1
+
 EXPOSE 5000
 ENTRYPOINT ["cms-entrypoint"]
 CMD ["dotnet", "AbrITPortal.dll"]

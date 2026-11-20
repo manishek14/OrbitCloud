@@ -1,55 +1,49 @@
-// GET /api/admin/customers — customer directory with real aggregates.
+// GET /api/admin/customers — paginated customer directory with real aggregates.
+//
+// Response envelope (full-remediation audit §3.2): { items, page, pageSize,
+// total, totalPages }. The page size is capped server-side; search, filters
+// and sorting are validated against fixed whitelists. The previous version
+// returned an unbounded array and ran 4 queries per customer (N+1).
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { requireAdminAccess } from "@/lib/auth/rbac";
-import { readCommercialCatalog } from "@/lib/commerce/catalog";
+import { adminCustomerService, type CustomerSort } from "@/lib/admin/customers";
 import { handleRouteError } from "@/lib/api/http";
-import type { AdminCustomerDTO } from "@/lib/api/types";
+
+const SORT_WHITELIST: CustomerSort[] = ["newest", "oldest", "name", "email"];
+const ROLE_WHITELIST = ["admin", "staff", "customer"];
+const STATUS_WHITELIST = ["active", "disabled"];
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
+
+function positiveInt(value: string | null, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : fallback;
+}
 
 export async function GET(request: Request) {
   try {
     await requireAdminAccess("customers.view", request);
-    const query = (new URL(request.url).searchParams.get("query") ?? "").trim().toLowerCase();
+    const params = new URL(request.url).searchParams;
 
-    const users = await db.panelUser.findMany({
-      where: query
-        ? {
-            OR: [
-              { email: { contains: query } },
-              { name: { contains: query } },
-              { mobile: { contains: query } },
-              { company: { contains: query } },
-            ],
-          }
-        : undefined,
-      orderBy: { createdAt: "desc" },
+    const sortParam = params.get("sort") ?? "newest";
+    const sort: CustomerSort = SORT_WHITELIST.includes(sortParam as CustomerSort) ? (sortParam as CustomerSort) : "newest";
+
+    const roleParam = params.get("role") ?? undefined;
+    const statusParam = params.get("status") ?? undefined;
+    const role = roleParam && ROLE_WHITELIST.includes(roleParam) ? roleParam : undefined;
+    const status = statusParam && STATUS_WHITELIST.includes(statusParam) ? statusParam : undefined;
+
+    const pageSize = Math.min(MAX_PAGE_SIZE, positiveInt(params.get("pageSize"), DEFAULT_PAGE_SIZE));
+    const page = positiveInt(params.get("page"), 1);
+
+    const result = await adminCustomerService.list({
+      query: params.get("query") ?? undefined,
+      role,
+      status,
+      page,
+      pageSize,
+      sort,
     });
-
-    const catalog = await readCommercialCatalog();
-    const result: AdminCustomerDTO[] = [];
-    for (const u of users) {
-      const [orderCount, paidAgg, hasDrive, activeSub] = await Promise.all([
-        db.order.count({ where: { userId: u.id } }),
-        db.transaction.aggregate({ where: { userId: u.id, status: "succeeded" }, _sum: { amountToman: true } }),
-        db.driveAccount.findUnique({ where: { panelUserId: u.id }, select: { id: true } }),
-        db.subscription.findFirst({ where: { userId: u.id, status: "active", expiresAt: { gt: new Date() } } }),
-      ]);
-      result.push({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        mobile: u.mobile,
-        company: u.company,
-        role: (u.role as AdminCustomerDTO["role"]) ?? "customer",
-        status: (u.status as AdminCustomerDTO["status"]) ?? "active",
-        createdAt: u.createdAt.toISOString(),
-        lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
-        orderCount,
-        paidTotalToman: paidAgg._sum.amountToman ?? 0,
-        hasDrive: Boolean(hasDrive),
-        activeSubscription: activeSub ? (catalog.packages.find((p) => p.code === activeSub.packageCode)?.nameFa ?? activeSub.packageCode) : null,
-      });
-    }
     return NextResponse.json(result);
   } catch (error) {
     return handleRouteError(error, "admin/customers");

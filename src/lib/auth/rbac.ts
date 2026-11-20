@@ -13,9 +13,13 @@
 // that owns /admin) reads the canonical business records (customers, orders,
 // payments, subscriptions, Drive accounts) through these same /api/admin/*
 // routes using a shared secret (ABRIT_SERVICE_TOKEN) — the documented
-// server-to-server contract between the two applications. The token never
-// grants more than read access plus the explicitly listed actions, is
-// compared in constant time, and is only honored when configured.
+// server-to-server contract between the two applications. The token is
+// compared in constant time and is only honored when configured, and it is
+// ENFORCED (not just documented) to grant exactly the permissions the CMS
+// pages need — read access to the business records plus pricing-catalog
+// management. It is deliberately NOT an administrator: identity/settings
+// administration, user role changes and maintenance operations stay
+// human-only (full-remediation audit §2.3).
 
 import { timingSafeEqual } from "node:crypto";
 import type { PanelUser } from "@prisma/client";
@@ -44,6 +48,26 @@ export const SERVICE_PRINCIPAL: PanelUser = Object.freeze({
   updatedAt: new Date(0),
   lastLoginAt: null,
 } as PanelUser);
+
+/**
+ * EXACT permission set granted to the service token (Orchard CMS). This is
+ * the enforced equivalent of the documented "read access plus the explicitly
+ * listed actions" contract: everything the AbrIT admin pages actually call
+ * (dashboard, customers, orders/payments, subscriptions, drive, tickets,
+ * reports, pricing catalog) — and nothing else. Destructive/administrative
+ * areas (users, settings, maintenance/cleanup, audit, content, media…) stay
+ * reserved for signed-in human administrators.
+ */
+export const SERVICE_PRINCIPAL_PERMISSIONS: ReadonlySet<string> = new Set([
+  "dashboard.view",
+  "customers.view",
+  "orders.view",
+  "subscriptions.view",
+  "drive.manage",
+  "tickets.manage",
+  "reports.view",
+  "pricing.manage",
+]);
 
 /** Constant-time service-token check. Returns true only when configured AND matching. */
 export function isServiceRequest(request: Request): boolean {
@@ -74,6 +98,7 @@ export const PERMISSIONS: Array<{ key: string; labelFa: string; groupFa: string 
   { key: "audit.view", labelFa: "مشاهده لاگ حسابرسی", groupFa: "گزارش" },
   { key: "queries.view", labelFa: "پرس‌وجوهای محتوا", groupFa: "گزارش" },
   { key: "recipes.manage", labelFa: "دستورالعمل‌های محتوا", groupFa: "گزارش" },
+  { key: "pricing.manage", labelFa: "مدیریت کاتالوگ قیمت", groupFa: "مدیریت" },
   { key: "users.manage", labelFa: "مدیریت کاربران و نقش‌ها", groupFa: "مدیریت" },
   { key: "settings.manage", labelFa: "تنظیمات سیستم", groupFa: "مدیریت" },
 ];
@@ -105,11 +130,19 @@ export function isAdminAreaUser(user: PanelUser): boolean {
 
 /**
  * Resolves the caller for an admin-area request: either a signed-in,
- * permission-checked panel user, or the trusted service principal when the
- * request carries the valid ABRIT_SERVICE_TOKEN (Orchard server-to-server).
+ * permission-checked panel user, or the service principal when the request
+ * carries the valid ABRIT_SERVICE_TOKEN (Orchard server-to-server) — in
+ * which case the permission is checked against the fixed service allowlist
+ * (SERVICE_PRINCIPAL_PERMISSIONS), so the token can never act as a full
+ * administrator.
  */
 export async function requireAdminAccess(permission: string, request: Request): Promise<PanelUser> {
-  if (isServiceRequest(request)) return SERVICE_PRINCIPAL;
+  if (isServiceRequest(request)) {
+    if (!SERVICE_PRINCIPAL_PERMISSIONS.has(permission)) {
+      throw new HttpError(403, "FORBIDDEN", "دسترسی سرویس به این بخش مجاز نیست.");
+    }
+    return SERVICE_PRINCIPAL;
+  }
   const user = await requireUser();
   if (!isAdminAreaUser(user) || !hasPermission(user.role, permission)) {
     throw new HttpError(403, "FORBIDDEN", "شما به این بخش دسترسی ندارید.");

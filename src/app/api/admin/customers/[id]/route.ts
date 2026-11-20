@@ -1,10 +1,31 @@
-// PATCH /api/admin/customers/[id] — update a user (role/status changes are
-// admin-only; staff may only edit names).
+// GET + PATCH /api/admin/customers/[id] — customer detail & update.
+//
+// GET is the endpoint the Orchard admin "customer details" page reads through
+// CommerceApiClient (full-remediation audit §3.1: it previously only had
+// PATCH, so every Orchard customer-detail request 404'd). Role/status changes
+// remain admin-only; staff may only edit names; the service principal is
+// read-only here by design.
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminAccess } from "@/lib/auth/rbac";
+import { adminCustomerService } from "@/lib/admin/customers";
 import { apiError, handleRouteError, readJson } from "@/lib/api/http";
 import { audit } from "@/lib/audit";
+
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    await requireAdminAccess("customers.view", request);
+    const { id } = await context.params;
+    if (!id || id.length > 64) {
+      return apiError(400, "VALIDATION", "شناسه مشتری معتبر نیست.");
+    }
+    const customer = await adminCustomerService.get(id);
+    if (!customer) return apiError(404, "NOT_FOUND", "کاربر یافت نشد.");
+    return NextResponse.json(customer);
+  } catch (error) {
+    return handleRouteError(error, "admin/customers/[id]");
+  }
+}
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {

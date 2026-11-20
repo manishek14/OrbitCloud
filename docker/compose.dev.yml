@@ -23,6 +23,8 @@ services:
   cms:
     environment:
       OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=abrit_dev_pw
+      # Dev override for the durable SMS outbox (mirrors the tenant DB override).
+      AbrIT__SmsDatabase: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=abrit_dev_pw
     ports: !override
       # Dev override: CMS debug port on all interfaces (dev container/VM use).
       - "${CMS_PORT:-5001}:5000"

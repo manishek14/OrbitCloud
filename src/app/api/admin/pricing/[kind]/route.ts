@@ -9,7 +9,7 @@ const kindOf = (kind: string) => kind === "plans" || kind === "contracts" ? kind
 
 export async function GET(request: Request, context: Context) {
   try {
-    await requireAdminAccess("settings.manage", request);
+    await requireAdminAccess("pricing.manage", request);
     const kind = kindOf((await context.params).kind);
     if (!kind) return apiError(404, "NOT_FOUND", "بخش یافت نشد.");
     const catalog = await readCommercialCatalog();
@@ -19,7 +19,7 @@ export async function GET(request: Request, context: Context) {
 
 export async function POST(request: Request, context: Context) {
   try {
-    await requireAdminAccess("settings.manage", request);
+    await requireAdminAccess("pricing.manage", request);
     const kind = kindOf((await context.params).kind);
     if (!kind) return apiError(404, "NOT_FOUND", "بخش یافت نشد.");
     const body = await readJson<{ payload?: unknown }>(request);
