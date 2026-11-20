@@ -59,7 +59,7 @@ export default function LoginView() {
           }
           toast.success(result.message);
           router.navigate(
-            `${routes.verifyOtp}?mobile=${encodeURIComponent(normalized)}&purpose=login&expires=${result.expiresInSeconds}`,
+            `${routes.verifyOtp}?mobile=${encodeURIComponent(normalized)}&purpose=login&expires=${result.expiresInSeconds}&len=${result.codeLength ?? 6}`,
           );
         },
         onError: (error) => toast.error(errorMessage(error)),

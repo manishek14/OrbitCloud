@@ -6,7 +6,7 @@ This guide deploys the complete stack with Docker Compose:
 |---|---|---|---|
 | `db` | `postgres:16-alpine` | internal only | `abrit_portal` (Prisma) + `abrit_orchard` (YesSql) |
 | `portal` | built from `Dockerfile` (bun → node:22-slim) | `3000` | public site, portal, `/api/*`, reverse proxy to CMS |
-| `cms` | built from `orchard/Dockerfile` (.NET 10) | `5001` (debug) | Orchard Core administration |
+| `cms` | built from `orchard/Dockerfile` (.NET 10) | `127.0.0.1:5001` (loopback debug only) | Orchard Core administration |
 
 > Honesty note: the Docker artifacts were authored and syntax-validated in a
 > sandbox **without a Docker daemon**. Build them on a machine with Docker
@@ -32,14 +32,25 @@ Mandatory values in `.env`:
 | Variable | Why |
 |---|---|
 | `ABRIT_SERVICE_TOKEN` | Shared secret of the Orchard ⇄ portal contract. Generate: `openssl rand -hex 24`. Same value is wired into both containers automatically. |
-| `POSTGRES_PASSWORD` | DB password (change the dev default `abrit_dev_pw`). |
+| `POSTGRES_PASSWORD` | **Required — compose refuses to start without it** (there is deliberately no insecure default). Generate: `openssl rand -hex 24`. Local development: use `docker/compose.dev.yml` (below) which pins a clearly-isolated dev password. |
+| `OTP_HMAC_SECRET` | **Required in production** — dedicated HMAC secret for OTP / recovery-code hashing (audit §3.5). Generate: `openssl rand -hex 32`. No implicit fallback exists (the former ABRIT_SERVICE_TOKEN fallback was removed by engineering review). Rotation: move the old value to `OTP_HMAC_SECRET_PREVIOUS`. |
 | `SMSIR_API_KEY`, `SMSIR_TEMPLATE_ID` | Real SMS.ir Verify credentials. Without them keep `OTP_DELIVERY_MODE=display` — **isolated development only**, production must be `sms`. |
 | `ABRIT_PAYMENTS_PUBLIC_BASE_URL` | **Required in production.** The public HTTPS origin used to build gateway callback URLs (never derived from Host headers). |
-| `NEXTCLOUD_MODE=live` + `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_APP_PASSWORD` | AbrIT Drive production integration. `simulation` deliberately refuses to run when `NODE_ENV=production`. |
+| `NEXTCLOUD_MODE=live` + `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_APP_PASSWORD` | AbrIT Drive production integration. `simulation` deliberately refuses to run when `NODE_ENV=production`. `NEXTCLOUD_ALLOW_INSECURE` is ignored in production (HTTPS only). |
 
 Portal/CMS host ports (optional overrides): `PORTAL_PORT` (default 3000),
-`CMS_PORT` (default 5001 — direct CMS access for debugging; regular
-administration is `https://<your-domain>/admin`).
+`CMS_PORT` (default 5001). The CMS debug port is bound to **127.0.0.1 by
+default** — administration belongs behind the public proxy at
+`https://<your-domain>/admin`. `CMS_BIND` can override the bind address for
+isolated development environments only.
+
+### Local development (isolated dev password)
+
+```bash
+# base compose + the development override (pins POSTGRES_PASSWORD=abrit_dev_pw
+# and exposes the CMS debug port on all interfaces for dev containers/VMs):
+docker compose -f docker-compose.yml -f docker/compose.dev.yml up -d --build
+```
 
 ## 3. First run
 
@@ -56,12 +67,14 @@ What happens automatically:
 2. **portal** entrypoint runs `prisma migrate deploy` (all migrations in
    `prisma/migrations`), optionally seeds when `SEED_ON_START=true`, then
    serves the standalone Next.js server on `0.0.0.0:3000`.
-3. **cms** serves Orchard on `0.0.0.0:5000` (host-mapped to `5001`).
+3. **cms** serves Orchard on `0.0.0.0:5000` (host-mapped to `127.0.0.1:5001`
+   by default — loopback only).
 
 ### 3.1 Orchard first-run setup (secure, no default password)
 
 1. Open `http://<your-domain>/admin` (proxied through the portal origin) or
-   `http://<host>:5001/admin` for direct debugging.
+   `http://127.0.0.1:5001/admin` from the Docker host for direct debugging
+   (the debug port is loopback-bound by default).
 2. Orchard shows its **setup screen**. The PostgreSQL connection is pre-filled
    from compose (`OrchardCore__Default__*`):
 
@@ -155,21 +168,47 @@ docker run --rm --volumes-from abrit-cms -v "$PWD":/backup alpine \
 - [ ] TLS terminates in front of `portal`; `ABRIT_PAYMENTS_PUBLIC_BASE_URL`
       set to that public origin.
 - [ ] `OTP_DELIVERY_MODE=sms` with real SMS.ir credentials (never `display`).
-- [ ] `NEXTCLOUD_MODE=live` with real Drive admin app-password.
-- [ ] `POSTGRES_PASSWORD` changed from the dev default.
+- [ ] `NEXTCLOUD_MODE=live` with real Drive admin app-password (HTTPS base URL;
+      `NEXTCLOUD_ALLOW_INSECURE` is ignored in production).
+- [ ] `POSTGRES_PASSWORD` set to a strong generated value (no default exists).
+- [ ] `OTP_HMAC_SECRET` set to a strong generated value — **mandatory**;
+      production refuses to issue OTP/recovery codes without it.
 - [ ] `ABRIT_SERVICE_TOKEN` regenerated (`openssl rand -hex 24`).
-- [ ] `CMS_PORT` mapping removed (or firewall-restricted) — administration
-      belongs behind the portal origin.
+- [ ] `CMS_BIND` left at the `127.0.0.1` default — administration belongs
+      behind the portal origin; never expose the debug port publicly.
 - [ ] First Orchard administrator created through the secure setup screen;
       `ABRIT_ADMIN_BOOTSTRAP_ENABLED` left `false`.
 - [ ] Payment gateways verified in the provider sandboxes with merchant
       credentials before any live enablement.
 
-## 8. Troubleshooting
+## 8. Retention & cleanup of short-lived security records
+
+Documented policy (implemented by the admin-only endpoint
+`POST /api/admin/maintenance/cleanup` — supports `{"dryRun":true}`):
+
+| Record | Retention |
+|---|---|
+| `OtpGrant` (login/register/recover codes) | purged 24 h after creation (max TTL is 10 min) |
+| `RecoveryGrant` (email recovery codes) | purged 24 h after creation |
+| `Session` (expired sessions) | purged 7 days after expiry |
+| `LoginAttempt` (throttle counters) | purged after 30 days (throttle window is 15 min) |
+| `SmsOutbox` (delivery audit) | purged after 90 days |
+
+Run it on a schedule (e.g. weekly) with an admin session or service token:
+
+```bash
+curl -X POST https://<your-domain>/api/admin/maintenance/cleanup \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $ABRIT_SERVICE_TOKEN" -d '{}'
+```
+
+The audit log itself is NOT purged by this endpoint — retain it according to
+your compliance requirements.
+
+## 9. Troubleshooting
 
 | Symptom | Check |
 |---|---|
-| Portal unhealthy | `docker compose logs portal` — Prisma migration output, then `/api/health` payload (`db: up/down`). |
+| Portal unhealthy | `docker compose logs portal` — Prisma migration output, then `/api/health` payload (`db: up/down`, `integrations.sms`, `integrations.drive`). |
 | `/admin` shows Next 404 | `ORCHARD_PROXY_TARGET` must be `http://cms:5000` (compose default) and `cms` must be healthy. |
 | CMS 500 on start | `docker compose logs cms`; confirm `abrit_orchard` exists (`docker compose exec db psql -U abrit -l`). |
 | Commerce API 401 in CMS logs | `ABRIT_SERVICE_TOKEN` differs between the two containers — re-run `docker compose up -d` after editing `.env`. |

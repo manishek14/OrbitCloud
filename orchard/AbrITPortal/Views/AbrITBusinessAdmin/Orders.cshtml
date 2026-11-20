@@ -19,7 +19,7 @@
                         <td dir="ltr"><strong>@o.OrderNumber</strong></td>
                         <td>@(o.CustomerName ?? o.CustomerEmail ?? "—")</td>
                         <td>@o.ItemCount</td>
-                        <td>@o.TotalToman.ToString("N0")</td>
+                        <td>@ViewFormats.FaToman(o.TotalToman)</td>
                         <td>
                             <span class="abrit-status-badge @(o.Status == "paid" ? "is-active" : o.Status == "pending_payment" ? "is-pending" : o.Status == "cancelled" ? "is-danger" : "is-info")">
                                 @(o.Status == "paid" ? "پرداخت‌شده" : o.Status == "pending_payment" ? "در انتظار پرداخت" : o.Status == "cancelled" ? "لغوشده" : o.Status)

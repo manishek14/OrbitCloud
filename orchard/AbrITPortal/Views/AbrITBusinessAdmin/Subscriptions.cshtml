@@ -20,7 +20,7 @@
                         <td>@s.Months ماه</td>
                         <td>@s.Users</td>
                         <td>@s.Endpoints</td>
-                        <td>@s.PriceTotalToman.ToString("N0")</td>
+                        <td>@ViewFormats.FaToman(s.PriceTotalToman)</td>
                         <td dir="ltr">@ViewFormats.CompactDate(s.StartsAt)</td>
                         <td dir="ltr">@ViewFormats.CompactDate(s.ExpiresAt)</td>
                         <td><span class="abrit-status-badge @(s.Status == "active" ? "is-active" : s.Status == "cancelled" ? "is-danger" : "is-muted")">@(s.Status == "active" ? "فعال" : s.Status == "expired" ? "منقضی" : s.Status == "cancelled" ? "لغوشده" : s.Status)</span></td>

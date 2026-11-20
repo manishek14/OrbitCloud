@@ -69,8 +69,18 @@ export function getNextcloudConfig(): NextcloudConfig {
   const adminUser = env("NEXTCLOUD_ADMIN_USER");
   const adminPassword = env("NEXTCLOUD_ADMIN_APP_PASSWORD");
   const httpsOk = baseUrl.startsWith("https://");
+  // Production guard (audit §5.3): NEXTCLOUD_ALLOW_INSECURE is a DEVELOPMENT
+  // override — it can never weaken production. Basic admin credentials must
+  // not travel over plain HTTP when NODE_ENV=production.
+  const allowInsecureEffective = isProduction ? false : allowInsecure;
+  if (isProduction && allowInsecure) {
+    console.warn(
+      "[nextcloud] NEXTCLOUD_ALLOW_INSECURE=true is ignored in production — " +
+        "the Nextcloud base URL must be HTTPS.",
+    );
+  }
   // Production guard: Basic credentials must never travel over plain HTTP.
-  const configured = Boolean(baseUrl) && Boolean(adminUser) && Boolean(adminPassword) && (httpsOk || allowInsecure);
+  const configured = Boolean(baseUrl) && Boolean(adminUser) && Boolean(adminPassword) && (httpsOk || allowInsecureEffective);
   return {
     mode,
     baseUrl,
@@ -78,7 +88,7 @@ export function getNextcloudConfig(): NextcloudConfig {
     adminPassword,
     timeoutMs,
     loginUrl: env("DRIVE_LOGIN_URL", "https://drive.abrit.cloud/login"),
-    allowInsecure,
+    allowInsecure: allowInsecureEffective,
     configured,
   };
 }

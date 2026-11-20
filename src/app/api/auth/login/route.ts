@@ -6,10 +6,16 @@
 // so the same account can never be ambiguously matched through inconsistent
 // phone formats (۹۸/۰۹/09 formats all collapse onto one canonical value).
 //
-// Rate limiting: failed password attempts are counted from the durable audit
-// log per identifier AND per client-IP hash over a 15-minute window — no
-// in-memory state, safe across restarts. Generic 401 for both unknown
-// identifiers and wrong passwords (no account enumeration).
+// Rate limiting (audit §4.1): failed password attempts are counted from a
+// DEDICATED, indexed LoginAttempt table with SEPARATE counters —
+//   • per canonical identifier (threshold 10 / 15 min)
+//   • per client-IP hash      (threshold 30 / 15 min — higher, shared NATs)
+// Each counter is evaluated INDEPENDENTLY; unrelated failures are never
+// OR-combined into one premature throttle. The audit log remains a pure audit
+// trail — it is NOT the rate-limiting database, and it never stores raw
+// identifiers for failed attempts (only keyed hashes).
+// Generic 401 for both unknown identifiers and wrong passwords (no account
+// enumeration).
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -20,6 +26,7 @@ import { clientIpHash } from "@/lib/auth/recovery";
 import { apiError, handleRouteError, readJson } from "@/lib/api/http";
 import { audit } from "@/lib/audit";
 import { toPublicUser } from "@/lib/api/serialize";
+import { hashLoginIdentifier } from "@/lib/auth/throttle";
 
 const schema = z.object({
   identifier: z
@@ -30,9 +37,10 @@ const schema = z.object({
   password: z.string().min(1, { message: "رمز عبور را وارد کنید." }).max(128),
 });
 
-// Failed-login throttle (per identifier and per IP, 15-minute window).
+// Failed-login throttle — INDEPENDENT windows (audit §4.1).
 const FAILED_WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILED_ATTEMPTS = 10;
+const MAX_FAILED_PER_IDENTIFIER = 10;
+const MAX_FAILED_PER_IP = 30;
 
 export async function POST(request: Request) {
   try {
@@ -52,24 +60,26 @@ export async function POST(request: Request) {
         "یک ایمیل معتبر یا شماره همراه (۰۹xxxxxxxxx) وارد کنید.",
       );
     }
-    const identifierLabel = identity.value;
 
-    // --- Rate limiting: durable, per-identifier AND per-IP -----------------
+    // --- Rate limiting: dedicated table, separate per-identifier AND per-IP --
     const ipHash = clientIpHash(request);
+    const identifierHash = hashLoginIdentifier(identity.kind, identity.value);
     const windowStart = new Date(Date.now() - FAILED_WINDOW_MS);
-    const failed = await db.auditLog.count({
-      where: {
-        action: "auth.login.failed",
-        createdAt: { gte: windowStart },
-        OR: [{ actorLabel: identifierLabel }, { metaJson: { contains: ipHash } }],
-      },
-    });
-    if (failed >= MAX_FAILED_ATTEMPTS) {
+    const [failedByIdentifier, failedByIp] = await Promise.all([
+      db.loginAttempt.count({
+        where: { identifierHash, success: false, createdAt: { gte: windowStart } },
+      }),
+      db.loginAttempt.count({
+        where: { ipHash, success: false, createdAt: { gte: windowStart } },
+      }),
+    ]);
+    if (failedByIdentifier >= MAX_FAILED_PER_IDENTIFIER || failedByIp >= MAX_FAILED_PER_IP) {
       await audit({
-        actorLabel: identifierLabel,
+        // Keyed hash label — raw identifiers never land in the audit trail.
+        actorLabel: `id:${identifierHash.slice(0, 12)}`,
         action: "auth.login.throttled",
         entityType: "user",
-        meta: { ipHash },
+        meta: { ipHash, kind: identity.kind },
       });
       return apiError(
         429,
@@ -85,8 +95,12 @@ export async function POST(request: Request) {
     });
     // Constant-shape failure: never reveals whether the identifier exists.
     if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+      // Durable throttle record (dedicated table — restart-safe, indexed).
+      await db.loginAttempt
+        .create({ data: { identifierHash, ipHash, success: false } })
+        .catch(() => undefined);
       await audit({
-        actorLabel: identifierLabel,
+        actorLabel: `id:${identifierHash.slice(0, 12)}`,
         action: "auth.login.failed",
         entityType: "user",
         meta: { ipHash, kind: identity.kind },
@@ -98,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     await db.panelUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    const session = await createSession(user.id);
+    const session = await createSession(user.id, { request });
     await audit({ actor: user, action: "auth.login.password", entityType: "user", entityId: user.id });
 
     const response = NextResponse.json({

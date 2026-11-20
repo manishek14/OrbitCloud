@@ -1,1 +1,0 @@
-﻿screenshots: pending (no browser automation tooling: msedge/playwright/node/npx/chrome/chromium not found)

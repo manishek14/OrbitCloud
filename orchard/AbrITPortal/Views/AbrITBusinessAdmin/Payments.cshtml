@@ -19,7 +19,7 @@
                         <td dir="ltr"><strong>@t.Ref</strong></td>
                         <td dir="ltr">@t.OrderNumber</td>
                         <td>@(t.Gateway == "zarinpal" ? "زرین‌پال (Sandbox)" : t.Gateway == "zibal" ? "زیبال (Sandbox)" : t.Gateway)</td>
-                        <td>@t.AmountToman.ToString("N0")</td>
+                        <td>@ViewFormats.FaToman(t.AmountToman)</td>
                         <td>
                             <span class="abrit-status-badge @(t.Status == "succeeded" ? "is-active" : t.Status == "pending" ? "is-pending" : t.Status == "failed" || t.Status == "cancelled" ? "is-danger" : "is-info")">
                                 @(t.Status == "succeeded" ? "موفق" : t.Status == "pending" ? "در جریان" : t.Status == "failed" ? "ناموفق" : t.Status == "cancelled" ? "لغوشده" : t.Status)

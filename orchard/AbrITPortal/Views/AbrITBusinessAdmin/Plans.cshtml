@@ -109,12 +109,12 @@
                             </td>
 
                             <td>
-                                @p.MonthlyPriceToman.ToString("N0")
+                                @ViewFormats.FaToman(p.MonthlyPriceToman)
                             </td>
 
-                            <td>@p.IncludedUsers</td>
+                            <td>@ViewFormats.FaNumber(p.IncludedUsers)</td>
 
-                            <td>@p.IncludedEndpoints</td>
+                            <td>@ViewFormats.FaNumber(p.IncludedEndpoints)</td>
 
                             <td>
                                 @(
@@ -127,11 +127,11 @@
                             </td>
 
                             <td>
-                                @p.ExtraUserFeeTomanPerMonth.ToString("N0")
+                                @ViewFormats.FaToman(p.ExtraUserFeeTomanPerMonth)
                             </td>
 
                             <td>
-                                @p.ExtraEndpointFeeTomanPerMonth.ToString("N0")
+                                @ViewFormats.FaToman(p.ExtraEndpointFeeTomanPerMonth)
                             </td>
 
                             <td>@p.SlaLabelFa</td>
@@ -143,6 +143,7 @@
                             </td>
 
                             <td class="abrit-pricing-operations">
+                            <div class="abrit-pricing-ops">
 
                                 <!-- Edit plan -->
 
@@ -224,6 +225,7 @@
 
                                 </form>
 
+                            </div>
                             </td>
 
                         </tr>
@@ -308,6 +310,7 @@
                             </td>
 
                             <td class="abrit-pricing-operations">
+                            <div class="abrit-pricing-ops">
 
                                 <!-- Edit contract -->
 
@@ -389,6 +392,7 @@
 
                                 </form>
 
+                            </div>
                             </td>
 
                         </tr>

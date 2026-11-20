@@ -50,6 +50,8 @@ export default function RegisterView() {
   const [otpInvalid, setOtpInvalid] = useState(false);
   const [demoCode, setDemoCode] = useState<string | null>(null);
   const [expirySeconds, setExpirySeconds] = useState(120);
+  // Configured OTP code length (server-provided, audit §4.5).
+  const [codeLength, setCodeLength] = useState(6);
 
   const normalizedMobile = () => normalizeMobileInput(form.mobile);
 
@@ -102,6 +104,9 @@ export default function RegisterView() {
             setDemoCode(null);
           }
           setExpirySeconds(result.expiresInSeconds);
+          if (result.codeLength && result.codeLength >= 4 && result.codeLength <= 8) {
+            setCodeLength(result.codeLength);
+          }
           toast.success(result.message);
           setOtp("");
           setOtpInvalid(false);
@@ -365,7 +370,7 @@ export default function RegisterView() {
                   <button
                     type="button"
                     onClick={() => copyToClipboard(demoCode, "کد تأیید کپی شد.")}
-                    className="shrink-0 rounded-lg border border-warning/40 p-1.5 transition-colors hover:bg-warning/20"
+                    className="shrink-0 rounded-lg border border-warning/40 p-2 transition-colors hover:bg-warning/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     aria-label="کپی کد تأیید"
                   >
                     <Copy className="size-3.5" />
@@ -386,6 +391,7 @@ export default function RegisterView() {
               <div>
                 <OTPInput
                   value={otp}
+                  length={codeLength}
                   invalid={otpInvalid}
                   disabled={register.isPending}
                   onChange={(value) => {

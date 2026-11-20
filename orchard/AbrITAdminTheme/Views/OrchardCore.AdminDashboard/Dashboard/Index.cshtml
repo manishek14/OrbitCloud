@@ -17,46 +17,61 @@
     </header>
 
     <section class="abrit-dashboard-kpis" aria-label="شاخص‌های عملیاتی">
-        <article class="abrit-dashboard-kpi abrit-dashboard-kpi--customers">
-            <span class="abrit-dashboard-kpi__label">مشتریان</span>
-            <strong class="abrit-dashboard-kpi__value">@data.Customers</strong>
-            <a href="/Admin/AbrIT/Customers">فهرست مشتریان <span aria-hidden="true">←</span></a>
-        </article>
-        <article class="abrit-dashboard-kpi abrit-dashboard-kpi--orders">
-            <span class="abrit-dashboard-kpi__label">کل سفارش‌ها</span>
-            <strong class="abrit-dashboard-kpi__value">@data.Orders</strong>
-            <a href="/Admin/AbrIT/Orders">فهرست سفارش‌ها <span aria-hidden="true">←</span></a>
-        </article>
-        <article class="abrit-dashboard-kpi abrit-dashboard-kpi--pending">
-            <span class="abrit-dashboard-kpi__label">سفارش‌های در انتظار</span>
-            <strong class="abrit-dashboard-kpi__value">@data.PendingOrders</strong>
-            <small>وضعیت سفارش‌ها در ۱۰۰ مورد اخیر</small>
-        </article>
-        <article class="abrit-dashboard-kpi abrit-dashboard-kpi--unavailable">
-            <span class="abrit-dashboard-kpi__label">سرویس‌های فعال</span>
-            <strong class="abrit-dashboard-kpi__value abrit-dashboard-kpi__value--unavailable">@data.ActiveServices</strong>
-            <small>اطلاعات سرویس مستقل از سفارش در دسترس نیست</small>
-        </article>
-        <article class="abrit-dashboard-kpi">
-            <span class="abrit-dashboard-kpi__label">تلاش‌های پرداخت</span>
-            <strong class="abrit-dashboard-kpi__value">@data.PaymentAttempts</strong>
-            <small>۱۰۰ مورد اخیر</small>
-        </article>
-        <article class="abrit-dashboard-kpi">
-            <span class="abrit-dashboard-kpi__label">پرداخت‌های ناموفق</span>
-            <strong class="abrit-dashboard-kpi__value">@data.FailedPayments</strong>
-            <small>از @data.PaymentAttempts پرداخت اخیر</small>
-        </article>
-        <article class="abrit-dashboard-kpi">
-            <span class="abrit-dashboard-kpi__label">پیامک در صف</span>
-            <strong class="abrit-dashboard-kpi__value">@data.SmsQueue</strong>
-            <small>۱۰۰ مورد اخیر</small>
-        </article>
-        <article class="abrit-dashboard-kpi">
-            <span class="abrit-dashboard-kpi__label">پیامک‌های ناموفق</span>
-            <strong class="abrit-dashboard-kpi__value">@data.FailedSms</strong>
-            <small>@data.SmsQueue پیامک در صف یا در حال تلاش</small>
-        </article>
+        @if (data.Unavailable)
+        {
+            /* One clear notice instead of eight identical error cards (audit UI-8). */
+            <article class="abrit-dashboard-kpi abrit-dashboard-kpi--unavailable" style="grid-column: 1 / -1;">
+                <span class="abrit-dashboard-kpi__label">شاخص‌ها موقتاً ناموجود است</span>
+                <strong class="abrit-dashboard-kpi__value abrit-dashboard-kpi__value--unavailable">@data.UnavailableReason</strong>
+                <small>شمارنده‌ها پس از بازگشت سرویس تجاری به‌روزش می‌شوند؛ فهرست‌های کامل در منوی «مدیریت کسب‌وکار» در دسترس‌اند.</small>
+            </article>
+        }
+        else
+        {
+            <article class="abrit-dashboard-kpi abrit-dashboard-kpi--customers">
+                <span class="abrit-dashboard-kpi__label">مشتریان</span>
+                <strong class="abrit-dashboard-kpi__value">@data.Customers</strong>
+                <a href="/Admin/AbrIT/Customers">فهرست مشتریان <span aria-hidden="true">←</span></a>
+            </article>
+            <article class="abrit-dashboard-kpi abrit-dashboard-kpi--orders">
+                <span class="abrit-dashboard-kpi__label">کل سفارش‌ها</span>
+                <strong class="abrit-dashboard-kpi__value">@data.Orders</strong>
+                <a href="/Admin/AbrIT/Orders">فهرست سفارش‌ها <span aria-hidden="true">←</span></a>
+            </article>
+            <article class="abrit-dashboard-kpi abrit-dashboard-kpi--pending">
+                <span class="abrit-dashboard-kpi__label">سفارش‌های در انتظار</span>
+                <strong class="abrit-dashboard-kpi__value">@data.PendingOrders</strong>
+                <small>وضعیت سفارش‌ها در ۱۰۰ مورد اخیر</small>
+            </article>
+            <article class="abrit-dashboard-kpi">
+                <span class="abrit-dashboard-kpi__label">سرویس‌های فعال</span>
+                <strong class="abrit-dashboard-kpi__value">@data.ActiveServices</strong>
+                <small>اشتراک‌های جاری مشتریان</small>
+            </article>
+            <article class="abrit-dashboard-kpi">
+                <span class="abrit-dashboard-kpi__label">تلاش‌های پرداخت</span>
+                <strong class="abrit-dashboard-kpi__value">@data.PaymentAttempts</strong>
+                <small>۱۰۰ مورد اخیر</small>
+            </article>
+            @if (data.SmsMetricsAvailable)
+            {
+                <article class="abrit-dashboard-kpi">
+                    <span class="abrit-dashboard-kpi__label">پرداخت‌های ناموفق</span>
+                    <strong class="abrit-dashboard-kpi__value">@data.FailedPayments</strong>
+                    <small>از @data.PaymentAttempts پرداخت اخیر</small>
+                </article>
+                <article class="abrit-dashboard-kpi">
+                    <span class="abrit-dashboard-kpi__label">پیامک در صف</span>
+                    <strong class="abrit-dashboard-kpi__value">@data.SmsQueue</strong>
+                    <small>۱۰۰ مورد اخیر</small>
+                </article>
+                <article class="abrit-dashboard-kpi">
+                    <span class="abrit-dashboard-kpi__label">پیامک‌های ناموفق</span>
+                    <strong class="abrit-dashboard-kpi__value">@data.FailedSms</strong>
+                    <small>@data.SmsQueue پیامک در صف یا در حال تلاش</small>
+                </article>
+            }
+        }
     </section>
 
     <div class="abrit-dashboard-columns">

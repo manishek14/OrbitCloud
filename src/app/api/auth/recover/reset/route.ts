@@ -4,9 +4,11 @@
 // new password policy, then consumes the grant + changes the password +
 // invalidates all sessions in a single transaction.
 //
-// Mobile channel: verifies the SMS OTP grant (purpose "recover") then applies
-// the same password policy + session invalidation. Persian/Arabic digits in
-// the code are normalized server-side.
+// Mobile channel: the SMS OTP grant (purpose "recover") is verified and
+// consumed INSIDE one transaction together with the password change and
+// session invalidation (audit §4.3/§4.4 — a lookup failure or weak password
+// can never burn the code). Persian/Arabic digits in the code are normalized
+// server-side.
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -40,16 +42,14 @@ export async function POST(request: Request) {
     const { code, newPassword } = parsed.data;
 
     if (parsed.data.mobile) {
-      // Mobile channel — verify the SMS OTP grant, then reset atomically.
-      // verifyGrant normalizes Persian/Arabic digits and validates the format.
-      await otpService.verifyGrant(parsed.data.mobile, "recover", code);
-      // Shared canonical normalization (single source of truth) — the same
-      // form the account was registered with.
-      const mobile = normalizeMobile(parsed.data.mobile);
-      const user = await db.panelUser.findUnique({ where: { mobile } });
-      if (!user) {
-        // Uniform failure — no account disclosure.
-        return apiError(400, "INVALID_CODE", "کد بازیابی واردشده صحیح نیست.");
+      // Mobile channel — one transaction: verify+consume the grant, change the
+      // password, invalidate sessions (audit §4.3). The account lookup runs
+      // FIRST so an unknown number never consumes a grant.
+      let mobile: string;
+      try {
+        mobile = normalizeMobile(parsed.data.mobile);
+      } catch {
+        return apiError(400, "VALIDATION", "شماره همراه معتبر نیست.");
       }
       if (
         newPassword.length < 8 ||
@@ -59,7 +59,15 @@ export async function POST(request: Request) {
       ) {
         return apiError(400, "WEAK_PASSWORD", "رمز عبور جدید باید حداقل ۸ نویسه و شامل حداقل یک حرف و یک رقم باشد.");
       }
+      const user = await db.panelUser.findUnique({ where: { mobile } });
+      if (!user) {
+        // Uniform failure — no account disclosure, grant untouched.
+        return apiError(400, "INVALID_CODE", "کد بازیابی واردشده صحیح نیست.");
+      }
+
       await db.$transaction(async (tx) => {
+        // verifyGrant consumes the grant inside THIS transaction.
+        await otpService.verifyGrant(mobile, "recover", code, tx);
         await tx.panelUser.update({
           where: { id: user.id },
           data: { passwordHash: hashPassword(newPassword), updatedAt: new Date() },

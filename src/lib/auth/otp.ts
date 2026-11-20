@@ -2,11 +2,25 @@
 // Mobile OTP grants — first-class mobile-number authentication.
 //
 // Durable, secure design:
-//   • CSPRNG 6-digit code stored ONLY as SHA-256; never in logs.
-//   • Short TTL (5 minutes), single-use, atomic attempt counting (max 5).
+//   • CSPRNG numeric code (OTP_CODE_LENGTH digits, default 6) stored ONLY as a
+//     KEYED HMAC-SHA256 (src/lib/auth/grant-hash.ts) — never plaintext, never
+//     a plain hash, never in logs.
+//   • Short TTL (default 2 minutes), single-use, atomic attempt counting.
 //   • Rate limits: max 3 grants per mobile and 10 per IP hash per 15 minutes.
 //   • Persian/Arabic digit normalization server-side.
 //   • Purposes: login | register | recover (mobile password recovery).
+//
+// Request ordering (audit §4.2 — a server misconfiguration must never consume
+// a user's rate-limit allowance):
+//   1. validate the request (mobile format)
+//   2. validate the OTP delivery configuration
+//   3. check the rate limits
+//   4. create the grant
+//   5. attempt provider delivery
+//   6. record the delivery result (durable outbox, metadata only)
+//   7. when delivery definitively fails, invalidate the grant so it can never
+//      be verified later, while keeping it counted toward the rate limit
+//      (a failing provider must not become an unlimited-request loophole).
 //
 // Delivery modes:
 //   • "sms" (PRODUCTION) — the code is delivered through the SMS.ir Verify
@@ -19,22 +33,26 @@
 //     mode in a production build is rejected.
 // ============================================================================
 
-import { createHash, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/api/http";
 import { clientIpHash } from "@/lib/auth/recovery";
 import { sendVerifyOtp, getSmsIrConfig } from "@/lib/sms/smsir";
 import { MOBILE_PATTERN, normalizeIdentifierDigits } from "@/lib/auth/identifier";
+import { hashGrantCode, verifyGrantCode } from "@/lib/auth/grant-hash";
+import type { PrismaTransactionClient } from "@/lib/db";
 
 export type OtpPurpose = "login" | "register" | "recover";
 export type OtpDeliveryMode = "display" | "sms";
 
 // ---------------------------------------------------------------------------
 // Operational tuning (environment-configurable, production-safe defaults):
-//   OTP_EXPIRY_SECONDS          default 120 (2 minutes)
-//   OTP_MAX_ATTEMPTS            default 3
-//   OTP_RESEND_COOLDOWN_SECONDS default 60 (surfaced to the UI via expires/limits)
-//   OTP_PROVIDER                alias of OTP_DELIVERY_MODE ("sms" | "display")
+//   OTP_CODE_LENGTH              default 6 (4..8, audit §4.5 — the generator
+//                                and the verifier both honor this value)
+//   OTP_EXPIRY_SECONDS           default 120
+//   OTP_MAX_ATTEMPTS             default 3
+//   OTP_RESEND_COOLDOWN_SECONDS  default 60
+//   OTP_PROVIDER                 alias of OTP_DELIVERY_MODE ("sms" | "display")
 // Hard floors keep the configuration safe even if a value is set too low.
 // ---------------------------------------------------------------------------
 function envNumber(name: string, fallback: number, min: number, max: number): number {
@@ -46,6 +64,9 @@ function envNumber(name: string, fallback: number, min: number, max: number): nu
 const CODE_TTL_MS = envNumber("OTP_EXPIRY_SECONDS", 120, 60, 600) * 1000;
 const MAX_ATTEMPTS = envNumber("OTP_MAX_ATTEMPTS", 3, 1, 10);
 const RESEND_COOLDOWN_SECONDS = envNumber("OTP_RESEND_COOLDOWN_SECONDS", 60, 15, 300);
+/** Code length is shared by the generator and the verifier — a single source
+ *  of truth so the configured length is actually enforced (audit §4.5). */
+export const OTP_CODE_LENGTH = envNumber("OTP_CODE_LENGTH", 6, 4, 8);
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const MAX_GRANTS_PER_MOBILE = 3;
 const MAX_GRANTS_PER_IP = 10;
@@ -73,10 +94,6 @@ export function otpDeliveryMode(): OtpDeliveryMode {
   return isProduction ? "sms" : "display";
 }
 
-function sha256(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
 /** Normalizes Persian/Arabic digits and validates the 09xxxxxxxxx format. */
 export function normalizeMobile(input: string): string {
   const normalized = normalizeIdentifierDigits(input);
@@ -94,6 +111,14 @@ function normalizeCode(input: string): string {
     .trim();
 }
 
+/** Generates a CSPRNG code of the configured length (no leading zero, so the
+ *  digit space stays uniform across all supported lengths). */
+function generateCode(): string {
+  const min = 10 ** (OTP_CODE_LENGTH - 1);
+  const max = 10 ** OTP_CODE_LENGTH;
+  return String(randomInt(min, max));
+}
+
 export interface OtpRequestResult {
   ok: true;
   message: string;
@@ -105,6 +130,9 @@ export interface OtpRequestResult {
   expiresInSeconds: number;
   /** Seconds before another code may be requested (UI resend countdown). */
   resendCooldownSeconds: number;
+  /** Configured code length — lets the UI render the right number of inputs
+   *  for non-default OTP_CODE_LENGTH values (audit §4.5). */
+  codeLength: number;
 }
 
 /** Records a delivery attempt in the durable outbox (metadata only — never the code). */
@@ -143,10 +171,24 @@ export const otpService = {
    * recovery and deliver it through the configured channel.
    */
   async requestGrant(request: Request, mobileInput: string, purpose: OtpPurpose, correlationId?: string): Promise<OtpRequestResult> {
+    // (1) Validate the request.
     const mobile = normalizeMobile(mobileInput);
+
+    // (2) Validate the delivery configuration BEFORE creating any state — a
+    // missing SMS.ir configuration must not consume rate-limit allowance or
+    // leave dead grants behind (audit §4.2).
+    const mode = otpDeliveryMode();
+    if (mode === "sms" && !getSmsIrConfig().configured) {
+      throw new HttpError(
+        503,
+        "SMS_NOT_CONFIGURED",
+        "سرویس پیامک پیکربندی نشده است؛ ورود با کد پیامکی فعلاً امکان‌پذیر نیست. (خطای پیکربندی سرور: SMSIR_API_KEY / SMSIR_OTP_TEMPLATE_ID)",
+      );
+    }
+
+    // (3) Rate limits (counted from durable grant rows).
     const ipHash = clientIpHash(request);
     const since = new Date(Date.now() - RATE_WINDOW_MS);
-
     const [byMobile, byIp] = await Promise.all([
       db.otpGrant.count({ where: { mobile, createdAt: { gte: since } } }),
       db.otpGrant.count({ where: { ipHash, createdAt: { gte: since } } }),
@@ -154,8 +196,6 @@ export const otpService = {
     if (byMobile >= MAX_GRANTS_PER_MOBILE || byIp >= MAX_GRANTS_PER_IP) {
       throw new HttpError(429, "RATE_LIMITED", "درخواست‌های کد تأیید بیش از حد مجاز است؛ چند دقیقه دیگر تلاش کنید.");
     }
-
-    const mode = otpDeliveryMode();
 
     // For recovery we only create a grant when an account with this mobile
     // exists — but the response stays uniform (no account enumeration).
@@ -168,36 +208,36 @@ export const otpService = {
           delivery: mode,
           expiresInSeconds: Math.floor(CODE_TTL_MS / 1000),
           resendCooldownSeconds: RESEND_COOLDOWN_SECONDS,
+          codeLength: OTP_CODE_LENGTH,
         };
       }
     }
 
-    const code = String(randomInt(100_000, 1_000_000));
+    // (4) Create the grant (keyed HMAC — never a plain hash).
+    const code = generateCode();
     const grant = await db.otpGrant.create({
       data: {
         mobile,
         purpose,
-        codeHash: sha256(code),
+        codeHash: hashGrantCode(code, purpose),
         expiresAt: new Date(Date.now() + CODE_TTL_MS),
         ipHash,
       },
     });
 
     if (mode === "sms") {
-      // Fail-safe configuration check BEFORE generating user-visible state.
-      if (!getSmsIrConfig().configured) {
-        throw new HttpError(
-          503,
-          "SMS_NOT_CONFIGURED",
-          "سرویس پیامک پیکربندی نشده است؛ ورود با کد پیامکی فعلاً امکان‌پذیر نیست. (خطای پیکربندی سرور: SMSIR_API_KEY / SMSIR_OTP_TEMPLATE_ID)",
-        );
-      }
+      // (5) Attempt delivery.
       const result = await sendVerifyOtp(mobile, code, correlationId);
+      // (6) Record the delivery result (metadata only).
       await recordOutbox(purpose, mobile, result, `otp:${grant.id}`);
       console.info("[otp.delivery]", { correlationId, purpose, stage: "provider_result", accepted: result.ok, kind: result.ok ? null : result.kind, messageIdPresent: result.ok && !!result.messageId });
       if (!result.ok) {
-        // Accurate delivery state: the grant exists but nothing was
-        // delivered. The user may retry within the rate limits.
+        // (7) Delivery definitively failed — invalidate the grant so it can
+        // never be verified, but keep the row (it still counts toward the
+        // rate limit; a failing provider must not open an unlimited loop).
+        await db.otpGrant
+          .updateMany({ where: { id: grant.id, consumedAt: null }, data: { consumedAt: new Date(), attempts: MAX_ATTEMPTS } })
+          .catch(() => undefined);
         if (result.kind === "not_configured") {
           throw new HttpError(503, "SMS_NOT_CONFIGURED", result.message);
         }
@@ -210,6 +250,7 @@ export const otpService = {
         providerAccepted: true,
         expiresInSeconds: Math.floor(CODE_TTL_MS / 1000),
         resendCooldownSeconds: RESEND_COOLDOWN_SECONDS,
+        codeLength: OTP_CODE_LENGTH,
       };
     }
 
@@ -226,21 +267,32 @@ export const otpService = {
       code,
       expiresInSeconds: Math.floor(CODE_TTL_MS / 1000),
       resendCooldownSeconds: RESEND_COOLDOWN_SECONDS,
+      codeLength: OTP_CODE_LENGTH,
     };
   },
 
   /**
    * Step 2 — verify an OTP against the latest unconsumed grant for the
    * mobile+purpose pair. Consumes the grant on success (single-use).
+   *
+   * Atomic, transaction-aware implementation: pass a transaction client to
+   * consume the grant atomically with a follow-up operation (e.g. account
+   * creation in /api/auth/register, audit §4.3). Omit it for standalone use.
    */
-  async verifyGrant(mobileInput: string, purpose: OtpPurpose, codeInput: string): Promise<void> {
+  async verifyGrant(
+    mobileInput: string,
+    purpose: OtpPurpose,
+    codeInput: string,
+    tx?: PrismaTransactionClient,
+  ): Promise<void> {
+    const client = tx ?? db;
     const mobile = normalizeMobile(mobileInput);
     const code = normalizeCode(codeInput);
-    if (!/^\d{6}$/.test(code)) {
+    if (!new RegExp(`^\\d{${OTP_CODE_LENGTH}}$`).test(code)) {
       throw new HttpError(400, "INVALID_CODE", "کد تأیید واردشده صحیح نیست.");
     }
 
-    const grant = await db.otpGrant.findFirst({
+    const grant = await client.otpGrant.findFirst({
       where: { mobile, purpose, consumedAt: null },
       orderBy: { createdAt: "desc" },
     });
@@ -251,21 +303,20 @@ export const otpService = {
       throw new HttpError(429, "TOO_MANY_ATTEMPTS", "تلاش‌های ناموفق بیش از حد مجاز است؛ کد جدید درخواست دهید.");
     }
 
-    const counted = await db.otpGrant.updateMany({
-      where: { id: grant.id, attempts: { lt: MAX_ATTEMPTS }, consumedAt: null },
-      data: { attempts: { increment: 1 } },
-    });
-    if (counted.count === 0) {
-      throw new HttpError(429, "TOO_MANY_ATTEMPTS", "تلاش‌های ناموفق بیش از حد مجاز است؛ کد جدید درخواست دهید.");
-    }
-
-    if (sha256(code) !== grant.codeHash) {
+    // Timing-safe, keyed-HMAC comparison (audit §3.5).
+    if (!verifyGrantCode(grant.codeHash, code, purpose)) {
+      // Count the failed attempt atomically; the grant is NOT consumed so the
+      // user can retry within MAX_ATTEMPTS.
+      await client.otpGrant.updateMany({
+        where: { id: grant.id, attempts: { lt: MAX_ATTEMPTS }, consumedAt: null },
+        data: { attempts: { increment: 1 } },
+      });
       throw new HttpError(400, "INVALID_CODE", "کد تأیید واردشده صحیح نیست.");
     }
 
-    const consumed = await db.otpGrant.updateMany({
+    const consumed = await client.otpGrant.updateMany({
       where: { id: grant.id, consumedAt: null },
-      data: { consumedAt: new Date() },
+      data: { consumedAt: new Date(), attempts: { increment: 1 } },
     });
     if (consumed.count === 0) {
       throw new HttpError(400, "CODE_EXPIRED", "کد تأیید منقضی شده است؛ دوباره درخواست دهید.");

@@ -136,7 +136,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-2.5">
                 {publicNav.slice(1, 5).map((item) => (
                   <li key={item.to}>
-                    <Link to={item.to} className="text-xs text-muted-foreground transition-colors hover:text-primary">
+                    <Link to={item.to} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">
                       {item.label}
                     </Link>
                   </li>
@@ -146,19 +146,19 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div>
               <h3 className="mb-3 text-xs font-extrabold">سرویس‌ها</h3>
               <ul className="space-y-2.5">
-                <li><Link to={routes.services} className="text-xs text-muted-foreground transition-colors hover:text-primary">مدیریت‌شده IT</Link></li>
-                <li><Link to={routes.portalDrive} className="text-xs text-muted-foreground transition-colors hover:text-primary">AbrIT Drive</Link></li>
-                <li><Link to={routes.plans} className="text-xs text-muted-foreground transition-colors hover:text-primary">تعرفه پکیج‌ها</Link></li>
-                <li><Link to={routes.faq} className="text-xs text-muted-foreground transition-colors hover:text-primary">سوالات متداول</Link></li>
+                <li><Link to={routes.services} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">مدیریت‌شده IT</Link></li>
+                <li><Link to={routes.portalDrive} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">AbrIT Drive</Link></li>
+                <li><Link to={routes.plans} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">تعرفه پکیج‌ها</Link></li>
+                <li><Link to={routes.faq} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">سوالات متداول</Link></li>
               </ul>
             </div>
             <div>
               <h3 className="mb-3 text-xs font-extrabold">حساب کاربری</h3>
               <ul className="space-y-2.5">
-                <li><Link to={routes.login} className="text-xs text-muted-foreground transition-colors hover:text-primary">ورود با شماره موبایل</Link></li>
-                <li><Link to={routes.register} className="text-xs text-muted-foreground transition-colors hover:text-primary">ثبت‌نام</Link></li>
-                <li><Link to={routes.portal} className="text-xs text-muted-foreground transition-colors hover:text-primary">پنل کاربری</Link></li>
-                <li><Link to={routes.contact} className="text-xs text-muted-foreground transition-colors hover:text-primary">تماس با فروش</Link></li>
+                <li><Link to={routes.login} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">ورود با شماره موبایل</Link></li>
+                <li><Link to={routes.register} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">ثبت‌نام</Link></li>
+                <li><Link to={routes.portal} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">پنل کاربری</Link></li>
+                <li><Link to={routes.contact} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">تماس با فروش</Link></li>
               </ul>
             </div>
           </div>

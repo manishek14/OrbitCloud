@@ -185,8 +185,12 @@ html:not([data-bs-theme="light"]) body {
 .abrit-pricing .abrit-admin-table-wrap { overflow-x: auto; }
 .abrit-pricing-panel { margin: .65rem 0; padding: .7rem; border: 1px solid var(--abrit-border); border-radius: 12px; background: var(--abrit-surface); }
 .abrit-pricing-panel summary { cursor: pointer; color: #b9d3ff; font-weight: 700; white-space: nowrap; }
-.abrit-pricing-operations { min-width: 170px; }
-.abrit-pricing-operations .abrit-pricing-panel[open] { min-width: min(760px, 80vw); }
+/* Row actions in one horizontal row (audit UI-7). The flex wrapper lives
+   INSIDE the td — display:flex on a table cell itself is not reliable in
+   auto table layout. The table scrolls horizontally (.abrit-admin-table-wrap). */
+.abrit-pricing-ops { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 300px; }
+.abrit-pricing-ops > * { margin: 0; }
+.abrit-pricing-ops .abrit-pricing-panel[open] { flex-basis: 100%; min-width: min(760px, 80vw); }
 .abrit-pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; padding: 1rem 0; }
 .abrit-pricing-grid label { display: grid; gap: .35rem; color: var(--abrit-text); font-weight: 650; }
 .abrit-pricing-grid input, .abrit-pricing-grid textarea { width: 100%; min-height: 42px; padding: .55rem .7rem; border: 1px solid var(--abrit-border); border-radius: 8px; background: #0a1b39; color: #e8f1ff; color-scheme: dark; }

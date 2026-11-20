@@ -1,23 +1,47 @@
-:81 {
-	@transform_port_query {
-		query XTransformPort=*
-	}
+# =============================================================================
+# Development / sandbox preview gateway.
+#
+# SECURITY (audit §3.1 + engineering review): the previous configuration proxied
+# to localhost:{query.XTransformPort} — an ARBITRARY user-controlled upstream
+# port. The first hardening pass allowlisted the whole 3000-3999 range; the
+# engineering review tightened it further to an EXPLICIT per-service mapping.
+# Every upstream is now enumerated: adding a preview service means adding one
+# explicit map entry. Everything else routes to the discard sink 127.0.0.1:9.
+#
+#   LISTENER: 127.0.0.1 only — the dynamic preview feature is a development/
+#   sandbox concern and must never be exposed publicly. Public traffic belongs
+#   to the real production reverse proxy in front of the portal container.
+# =============================================================================
 
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+127.0.0.1:81 {
+        # EXPLICIT service allowlist (engineering review: no wildcard port ranges).
+        #   3000 — Next.js portal (bun dev server)
+        #   3031 — Nextcloud emulator mini-service (mini-services/nextcloud-mock)
+        map {query.XTransformPort} {upstream} {
+                3000 localhost:3000
+                3031 localhost:3031
+                default 127.0.0.1:9
+        }
 
-	handle {
-		reverse_proxy localhost:3000 {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+        @transform_port_query {
+                query XTransformPort=*
+        }
+
+        handle @transform_port_query {
+                reverse_proxy {upstream} {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
+        handle {
+                reverse_proxy localhost:3000 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 }

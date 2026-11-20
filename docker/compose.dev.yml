@@ -1,0 +1,28 @@
+# =============================================================================
+# DEVELOPMENT override — clearly isolated local convenience (audit §3.2).
+#
+# Usage (from the repository root; requires Compose v2.24+ for the ports !override tag):
+#   docker compose -f docker-compose.yml -f docker/compose.dev.yml up
+#
+# This file pins the well-known DEVELOPMENT database password so a local
+# developer does not have to invent one. It must NEVER be used in production:
+# the base compose file requires POSTGRES_PASSWORD, and this override is the
+# only place the dev password exists.
+# =============================================================================
+
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: abrit_dev_pw
+  portal:
+    environment:
+      DATABASE_URL: postgresql://abrit:abrit_dev_pw@db:5432/abrit_portal?schema=public
+      # Isolated dev value for the mandatory grant-hashing secret (production
+      # must generate its own: openssl rand -hex 32).
+      OTP_HMAC_SECRET: abrit_dev_only_grant_hmac_key
+  cms:
+    environment:
+      OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=abrit_dev_pw
+    ports: !override
+      # Dev override: CMS debug port on all interfaces (dev container/VM use).
+      - "${CMS_PORT:-5001}:5000"

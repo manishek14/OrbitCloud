@@ -4,6 +4,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+import type { PrismaTransactionClient } from "@/lib/db";
 import type { PanelUser } from "@prisma/client";
 
 export const SESSION_COOKIE = "abrit_session";
@@ -15,6 +16,18 @@ export interface SessionInfo {
 }
 
 export async function createSession(userId: string, meta?: { userAgent?: string | null; request?: Request }): Promise<SessionInfo> {
+  return createSessionInTx(db, userId, meta);
+}
+
+/**
+ * Transaction-aware session creation — the session row is committed together
+ * with the caller's transaction (e.g. atomic registration, audit §4.3).
+ */
+export async function createSessionInTx(
+  tx: PrismaTransactionClient | typeof db,
+  userId: string,
+  meta?: { userAgent?: string | null; request?: Request },
+): Promise<SessionInfo> {
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
@@ -22,7 +35,7 @@ export async function createSession(userId: string, meta?: { userAgent?: string 
   const rawAgent = meta?.userAgent ?? request?.headers?.get("user-agent") ?? null;
   const userAgent = rawAgent ? rawAgent.slice(0, 250) : null;
   const ipHash = request ? createHash("sha256").update(`ip:${request.headers.get("x-real-ip") ?? "unknown"}`).digest("hex") : null;
-  await db.session.create({ data: { userId, tokenHash, expiresAt, userAgent, ipHash } });
+  await tx.session.create({ data: { userId, tokenHash, expiresAt, userAgent, ipHash } });
   return { token, expiresAt };
 }
 

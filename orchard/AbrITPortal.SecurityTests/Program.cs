@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 using AbrITPortal.Drive;
 using AbrITPortal.Orders;
 using AbrITPortal.Security;
-using AbrITPortal.Portal;
 using AbrITPortal.Commercial;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -38,10 +37,12 @@ void Check(bool result, string name)
     if (!result) failures++;
 }
 Check(!catalogTemplate.Contains("AdminAllOrders", StringComparison.Ordinal) && !catalogTemplate.Contains("Queries.MyOrders", StringComparison.Ordinal), "public catalog contains no order query");
-Check(typeof(PortalController).GetMethod("Dashboard")!.GetCustomAttributes(typeof(AuthorizeAttribute), true).Length > 0, "dashboard requires authenticated user");
-Check(typeof(PortalController).GetMethod("Account")!.GetCustomAttributes(typeof(AuthorizeAttribute), true).Length > 0, "account requires authenticated user");
-Check(typeof(PortalController).GetMethod("Catalog")!.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Length > 0, "catalog remains public");
-Check(typeof(PortalController).GetMethod("Service")!.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Length > 0, "service details remain public");
+// NOTE: the former PortalController (dashboard/account MVC pages) was retired
+// when the customer portal moved to the Next.js application. Its authorization
+// behavior (session-gated portal pages, per-identifier login throttling,
+// ownership checks) is enforced by the portal API and covered by the bun test
+// suite (tests/login-throttle.test.ts, tests/drive-entitlement.test.ts and
+// the portal route auth tests) — nothing to assert here.
 var serviceListPath = Path.Combine(AppContext.BaseDirectory, "Content-AbrITService.List.liquid");
 Check(!File.ReadAllText(serviceListPath).Contains("/orders/new", StringComparison.Ordinal), "catalog has no fake checkout action");
 Check(typeof(DriveController).GetMethod("Index")!.GetCustomAttributes(typeof(AuthorizeAttribute), true).Length > 0, "drive page requires authenticated user");
@@ -55,6 +56,9 @@ Check(DriveStatusService.FolderName("customer-a").StartsWith("u-") && !DriveStat
 Check(driveReady.IsReady && driveReady.UsedBytes == 734003200 && driveReady.TotalBytes == 11471421440, "drive 207 quota parsed");
 Check(DriveStatusService.Interpret(HttpStatusCode.NotFound, null).State == DriveState.Missing, "drive 404 means missing folder");
 Check(DriveStatusService.Interpret(HttpStatusCode.Unauthorized, null).State == DriveState.Unreachable, "drive 401 means unreachable");
+// NOTE: the former PortalController.CanDisplayOrders dashboard filter moved to
+// the Next.js portal (src/app/api/portal/* ownership scoping) — its ownership
+// rules are asserted below through the REAL Orchard authorization pipeline.
 var a = Principal("customer-a");
 var b = Principal("customer-b");
 var admin = Principal("admin", "Administrator");
@@ -67,12 +71,6 @@ var orders = new Dictionary<string, ContentItem>
     ["draft"] = new() { ContentType = "AbrITOrder", ContentItemId = "draft", Owner = "customer-a" }
 };
 
-Check(!PortalController.CanDisplayOrders(anonymous, [orders["a"]]), "anonymous dashboard data denied");
-Check(PortalController.CanDisplayOrders(a, [orders["a"]]), "A dashboard own data");
-Check(!PortalController.CanDisplayOrders(a, [orders["b"]]), "A dashboard rejects B data");
-Check(PortalController.CanDisplayOrders(b, [orders["b"]]), "B dashboard own data");
-Check(!PortalController.CanDisplayOrders(a, [orders["draft"]]), "dashboard draft denied");
-Check(!PortalController.CanDisplayOrders(Principal(null), [orders["a"]]), "dashboard stable ID required");
 // Real Orchard permission handlers run both before and after the veto in separate containers.
 foreach (var vetoFirst in new[] { false, true })
 {

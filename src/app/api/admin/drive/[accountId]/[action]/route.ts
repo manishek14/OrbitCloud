@@ -1,5 +1,7 @@
-// POST /api/admin/drive/[accountId]/[action] — sync | enable | disable a
-// customer's Drive account (real Nextcloud operations, audited).
+// POST /api/admin/drive/[accountId]/[action] — sync | enable | disable |
+// reset-provisioning a customer's Drive account (real Nextcloud operations,
+// audited). reset-provisioning is the OPERATOR RECOVERY PATH for stuck
+// reservation states (audit §5.2) — see driveService.adminResetProvisioning.
 import { NextResponse } from "next/server";
 import { requireAdminAccess } from "@/lib/auth/rbac";
 import { driveService } from "@/lib/drive/service";
@@ -27,7 +29,18 @@ export async function POST(request: Request, context: { params: Promise<{ accoun
         message: action === "enable" ? "حساب Drive فعال شد." : "حساب Drive غیرفعال شد.",
       });
     }
-    return apiError(400, "INVALID_ACTION", "عملیات مجاز نیست (sync | enable | disable).");
+    if (action === "reset-provisioning") {
+      const result = await driveService.adminResetProvisioning(accountId);
+      await audit({
+        actor: staff,
+        action: "drive.provisioning_reset",
+        entityType: "drive_account",
+        entityId: accountId,
+        meta: { outcome: result.action },
+      });
+      return NextResponse.json({ ok: true, message: result.message });
+    }
+    return apiError(400, "INVALID_ACTION", "عملیات مجاز نیست (sync | enable | disable | reset-provisioning).");
   } catch (error) {
     return handleRouteError(error, "admin/drive/action");
   }

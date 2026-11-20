@@ -206,9 +206,11 @@ export function PlanCarousel({
         <ChevronLeft className="size-5" aria-hidden="true" />
       </button>
 
-      {/* Pagination indicators */}
+      {/* Pagination indicators — accessible touch targets (audit UI-3):
+          the visual dot stays 8px, but the button itself is 24×24 so the
+          tabs meet WCAG 2.5.8 / mobile touch-target minimums. */}
       {count > 1 ? (
-        <div className="mt-5 flex items-center justify-center gap-2" role="tablist" aria-label="موقعیت پلن‌ها">
+        <div className="mt-5 flex items-center justify-center gap-1" role="tablist" aria-label="موقعیت پلن‌ها">
           {Array.from({ length: count }, (_, i) => (
             <button
               key={i}
@@ -217,11 +219,16 @@ export function PlanCarousel({
               aria-selected={i === index}
               aria-label={`پلن ${toFaDigits(i + 1)}`}
               onClick={() => manual(() => goTo(i))}
-              className={cn(
-                "h-2 rounded-full transition-all duration-300",
-                i === index ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50",
-              )}
-            />
+              className="flex size-6 items-center justify-center rounded-full transition-colors hover:bg-muted-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "block h-2 rounded-full transition-all duration-300",
+                  i === index ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30",
+                )}
+              />
+            </button>
           ))}
         </div>
       ) : null}

@@ -284,7 +284,7 @@ export const driveService = {
         state: "not_provisioned",
         detail: account.status === "provisioning"
           ? "فعال‌سازی Drive کامل نشده است؛ با همین نام کاربری و یک رمز عبور جدید دوباره تلاش کنید."
-          : "حساب Drive ساخته شده اما فعال‌سازی کامل نشده است؛ با همین نام کاربری دوباره تلاش کنید. رمز عبور حساب تغییر نمی‌کند.",
+          : "حساب Drive ساخته شده اما فعال‌سازی کامل نشده است؛ با همین نام کاربری و رمز عبور جدید دوباره تلاش کنید. پس از تکمیل فعال‌سازی، همین رمز جدید روی حساب اعمال می‌شود.",
         pendingUsername: account.ncUsername,
         account: null,
         usage: null,
@@ -492,6 +492,15 @@ export const driveService = {
     if (!existingNcUser || (existingNcUser.displayname ?? "") !== displayName) {
       repairOps.push(nextcloudClient.editUser(ncUsername, "displayname", displayName).catch(() => undefined));
     }
+    // Password synchronization on RESUME (audit §5.1): ownership of the
+    // remote account was verified above (matching userid AND panel email on
+    // a provisioning_created reservation). The user explicitly chose a new
+    // password in this retry — apply it so the credentials the user sees are
+    // the credentials that work. A pending `provisioning` reservation never
+    // reaches this branch (createUser just ran with this password instead).
+    if (resumed) {
+      repairOps.push(nextcloudClient.editUser(ncUsername, "password", ncPassword));
+    }
     repairOps.push(nextcloudClient.setQuota(ncUsername, toHumanQuota(plan.quotaBytes)));
     try {
       await Promise.all(repairOps);
@@ -644,5 +653,82 @@ export const driveService = {
   async adminChangeQuota(accountId: string, planCode: string): Promise<DriveOverview> {
     const owner = await this.adminGetOwner(accountId);
     return this.changeQuota(owner, planCode, true);
+  },
+
+  /**
+   * Operator recovery path for stuck provisioning states (audit §5.2).
+   *
+   * Safe, minimal, verifiable un-stick for the two reservation states:
+   *   • provisioning_created + remote user EXISTS and is owned by this panel
+   *     user (userid + email match) → keep the reservation, keep status
+   *     provisioning_created. The owner can then retry activation themselves;
+   *     the retry applies their newly chosen password (see activate()).
+   *   • remote user MISSING → downgrade the reservation to `provisioning`
+   *     so the owner's next attempt performs a clean remote createUser.
+   *
+   * Never deletes reservations, never adopts a remote account whose email
+   * does not match the owner, never touches accounts already active. Every
+   * decision is recorded as a DriveEvent for the operator audit trail.
+   */
+  async adminResetProvisioning(accountId: string): Promise<{ ok: true; action: "kept_created" | "downgraded_to_provisioning"; message: string }> {
+    const account = await db.driveAccount.findUnique({
+      where: { id: accountId },
+      include: { panelUser: true },
+    });
+    if (!account || !account.panelUser) throw new DriveServiceError("NOT_LINKED");
+    if (account.status !== "provisioning" && account.status !== "provisioning_created") {
+      throw new DriveServiceError("ALREADY_LINKED", {
+        publicMessage: "این حساب در وضعیت فعال‌سازی ناتمام نیست؛ بازنشانی فقط برای رزروهای ناتمام معتبر است.",
+      });
+    }
+
+    let remoteUser: Awaited<ReturnType<typeof nextcloudClient.getUser>> = null;
+    try {
+      remoteUser = await nextcloudClient.getUser(account.ncUsername);
+    } catch (error) {
+      // Unreachable/auth-failed remote → NOT safe to decide anything.
+      throw new DriveServiceError(
+        error instanceof NextcloudError && (error.code === "NC_UNREACHABLE" || error.code === "NC_AUTH_FAILED") ? error.code : "NC_ERROR",
+        {
+          httpStatus: 502,
+          publicMessage: "وضعیت سرور Drive در دسترس نیست؛ تصمیم بازنشانی ممکن نیست.",
+          causeDetail: error instanceof NextcloudError ? error.rawDetail : String(error),
+        },
+      );
+    }
+
+    if (remoteUser) {
+      const owned =
+        remoteUser.id === account.ncUsername &&
+        remoteUser.email?.toLowerCase() === account.panelUser.email.toLowerCase();
+      if (!owned) {
+        await logEvent(account.id, "error", "بازنشانی رد شد: حساب ریموت متعلق به این کاربر نیست (ایمیل/نام کاربری متفاوت).");
+        throw new DriveServiceError("RECOVERY_REQUIRED", {
+          causeDetail: "Remote account exists but is not owned by the reservation owner.",
+          publicMessage: "حساب ریموت یافت شد اما متعلق به این مشتری نیست؛ بازنشانی خودکار ممکن نیست.",
+        });
+      }
+      await db.driveAccount.update({
+        where: { id: account.id },
+        data: { status: "provisioning_created", lastSyncedAt: new Date() },
+      });
+      await logEvent(account.id, "resumed", "بازنشانی عملیاتی: رزرو در وضعیت «ایجادشده در سرور» نگه داشته شد؛ مالک می‌تواند فعال‌سازی را با رمز جدید تکمیل کند.");
+      return {
+        ok: true,
+        action: "kept_created",
+        message: "حساب ریموت متعلق به مشتری تأیید شد؛ رزرو در وضعیت تکمیل‌شدنی نگه داشته شد. مشتری می‌تواند با همان نام کاربری و رمز جدید فعال‌سازی را کامل کند.",
+      };
+    }
+
+    await db.driveAccount.update({
+      where: { id: account.id },
+      data: { status: "provisioning", lastSyncedAt: new Date() },
+    });
+    await logEvent(account.id, "resumed", "بازنشانی عملیاتی: حساب ریموت یافت نشد؛ رزرو به وضعیت «در انتظار ایجاد» بازگشت.");
+    return {
+      ok: true,
+      action: "downgraded_to_provisioning",
+      message: "حساب ریموت یافت نشد؛ رزرو به وضعیت ایجاد مجاز بازگشت. مشتری می‌تواند فعال‌سازی را از نو انجام دهد.",
+    };
   },
 };

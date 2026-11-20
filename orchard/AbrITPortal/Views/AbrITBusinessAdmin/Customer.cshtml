@@ -4,7 +4,7 @@
     <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مشتری</span><h1>@(Model.Name ?? Model.Email)</h1></header>
     <section class="abrit-ops__stats">
         <article class="abrit-ops__stat"><span>سفارش‌ها</span><strong>@Model.OrderCount</strong></article>
-        <article class="abrit-ops__stat"><span>مجموع پرداخت (تومان)</span><strong>@Model.PaidTotalToman.ToString("N0")</strong></article>
+        <article class="abrit-ops__stat"><span>مجموع پرداخت (تومان)</span><strong>@ViewFormats.FaToman(Model.PaidTotalToman)</strong></article>
         <article class="abrit-ops__stat"><span>حساب Drive</span><strong>@(Model.HasDrive ? "دارد" : "ندارد")</strong></article>
         <article class="abrit-ops__stat"><span>اشتراک فعال</span><strong>@(Model.ActiveSubscription ?? "—")</strong></article>
     </section>
