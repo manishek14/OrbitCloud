@@ -19,7 +19,12 @@ This guide deploys the complete stack with Docker Compose:
 - Docker 24+ with the Compose v2 plugin (`docker compose version`)
 - 2 GB+ free RAM for the stack; ~4 GB disk for images
 - For production: a public HTTPS origin with TLS termination (reverse proxy
-  or cloud LB) in front of `portal:3000`
+  or cloud LB) in front of `portal:3000`. That edge MUST overwrite (not
+  append) `x-real-ip` / `x-forwarded-for` and pin `Host`; when it does, set
+  `ABRIT_TRUST_PROXY_HEADERS=true` and list your public host names in
+  `ABRIT_TRUSTED_PUBLIC_HOSTS` (see §2). If the edge cannot guarantee this,
+  leave both unset — the portal then refuses to trust client-supplied
+  forwarding headers (final-remediation §3).
 
 ## 2. Configuration
 
@@ -36,6 +41,8 @@ Mandatory values in `.env`:
 | `OTP_HMAC_SECRET` | **Required in production** — dedicated HMAC secret for OTP / recovery-code hashing (audit §3.5). Generate: `openssl rand -hex 32`. No implicit fallback exists (the former ABRIT_SERVICE_TOKEN fallback was removed by engineering review). Rotation: move the old value to `OTP_HMAC_SECRET_PREVIOUS`. |
 | `SMSIR_API_KEY`, `SMSIR_TEMPLATE_ID` | Real SMS.ir Verify credentials. Without them keep `OTP_DELIVERY_MODE=display` — **isolated development only**, production must be `sms`. |
 | `ABRIT_PAYMENTS_PUBLIC_BASE_URL` | **Required in production.** The public HTTPS origin used to build gateway callback URLs (never derived from Host headers). |
+| `ABRIT_TRUSTED_PUBLIC_HOSTS` | **Recommended when a reverse proxy fronts the portal.** Comma/space-separated public host names (e.g. `portal.example.com, www.portal.example.com`). The CMS proxy only reports these hosts upstream (`Host` / `X-Forwarded-Host`) — an inbound request carrying any other Host header cannot influence CMS-generated URLs or redirects (final-remediation P1-2). |
+| `ABRIT_TRUST_PROXY_HEADERS` | Set to `true` **only** when an operator-controlled reverse proxy is in front of the portal AND that proxy pins `Host` and overwrites `x-real-ip` / `x-forwarded-for` (the repo's Caddy gateway template does exactly this; so do standard Caddy/Nginx TLS edges). It switches (1) the CMS proxy to forward the inbound `Host`/`X-Forwarded-*` and (2) the public rate limiter to per-client-IP keys. Leave `false` otherwise: Host is then derived from configuration and rate limiting uses one shared bucket — spoofed client headers are ignored. |
 | `NEXTCLOUD_MODE=live` + `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_APP_PASSWORD` | AbrIT Drive production integration. `simulation` deliberately refuses to run when `NODE_ENV=production`. `NEXTCLOUD_ALLOW_INSECURE` is ignored in production (HTTPS only). |
 
 Portal/CMS host ports (optional overrides): `PORTAL_PORT` (default 3000),

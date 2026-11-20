@@ -2,9 +2,18 @@
 //
 // GET is the endpoint the Orchard admin "customer details" page reads through
 // CommerceApiClient (full-remediation audit §3.1: it previously only had
-// PATCH, so every Orchard customer-detail request 404'd). Role/status changes
-// remain admin-only; staff may only edit names; the service principal is
-// read-only here by design.
+// PATCH, so every Orchard customer-detail request 404'd).
+//
+// PERMISSION MODEL (final-remediation P1-1 — view/edit separation):
+//   * GET    → customers.view (service principal included: the CMS only
+//              ever READS customer records — CommerceApiClient has no
+//              customer-mutation call).
+//   * PATCH  → customers.edit (staff holds it; the service principal does
+//              NOT — a read-only service token must never mutate customer
+//              data, not even the display name).
+//   * role/status changes additionally require settings.manage — human
+//     administrators only (staff cannot escalate, the service principal
+//     cannot mutate at all).
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdminAccess } from "@/lib/auth/rbac";
@@ -29,7 +38,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireAdminAccess("customers.view", request);
+    // P1-1: a WRITE requires the edit permission, never the read-only one —
+    // the service principal holds customers.view and must stop here (403).
+    const actor = await requireAdminAccess("customers.edit", request);
     const { id } = await context.params;
     const body = await readJson<{ role?: string; status?: string; name?: string }>(request);
     const target = await db.panelUser.findUnique({ where: { id } });

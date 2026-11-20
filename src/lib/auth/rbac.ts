@@ -18,8 +18,10 @@
 // ENFORCED (not just documented) to grant exactly the permissions the CMS
 // pages need — read access to the business records plus pricing-catalog
 // management. It is deliberately NOT an administrator: identity/settings
-// administration, user role changes and maintenance operations stay
-// human-only (full-remediation audit §2.3).
+// administration, user role changes, customer-record mutations and
+// maintenance operations stay human-only (full-remediation audit §2.3;
+// final-remediation P1-1: customer view and edit permissions are separate,
+// and the service principal deliberately holds only the view permission).
 
 import { timingSafeEqual } from "node:crypto";
 import type { PanelUser } from "@prisma/client";
@@ -88,6 +90,7 @@ export function isServiceRequest(request: Request): boolean {
 export const PERMISSIONS: Array<{ key: string; labelFa: string; groupFa: string }> = [
   { key: "dashboard.view", labelFa: "مشاهده داشبورد عملیاتی", groupFa: "عمومی" },
   { key: "customers.view", labelFa: "مشاهده مشتریان", groupFa: "عملیات" },
+  { key: "customers.edit", labelFa: "ویرایش مشخصات مشتریان", groupFa: "عملیات" },
   { key: "orders.view", labelFa: "مشاهده سفارش‌ها و پرداخت‌ها", groupFa: "عملیات" },
   { key: "subscriptions.view", labelFa: "مشاهده اشتراک‌ها", groupFa: "عملیات" },
   { key: "drive.manage", labelFa: "مدیریت حساب‌های Drive", groupFa: "عملیات" },
@@ -106,6 +109,7 @@ export const PERMISSIONS: Array<{ key: string; labelFa: string; groupFa: string 
 const STAFF_PERMISSIONS = new Set([
   "dashboard.view",
   "customers.view",
+  "customers.edit",
   "orders.view",
   "subscriptions.view",
   "drive.manage",

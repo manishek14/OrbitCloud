@@ -1,18 +1,26 @@
 // Next.js routes take precedence. Unknown paths belong to Orchard Core.
 // Resolve the upstream at request time so a rebuilt image is environment-neutral.
 //
-// SECURITY (full-remediation audit §2.1):
+// SECURITY (full-remediation audit §2.1 + final-remediation P1-2):
 //   * The upstream ORIGIN is pinned to the configured ORCHARD_PROXY_TARGET.
 //     The request path is rebuilt from the catch-all segments and every
 //     segment is percent-encoded, so no "//", "\", "%2F%2F" or Host-header
 //     trick can ever change the target origin (SSRF hardening).
+//   * HOST-HEADER TRUST (P1-2): the Host and X-Forwarded-Host sent upstream
+//     are derived ONLY from the validated proxy target or the operator's
+//     ABRIT_TRUSTED_PUBLIC_HOSTS allowlist — NEVER from the inbound request
+//     unless ABRIT_TRUST_PROXY_HEADERS=true explicitly trusts the edge
+//     proxy. A poisoned incoming Host cannot influence what the CMS sees
+//     or where redirects point.
+//   * REDIRECTS (P1-2): absolute Locations are only honored when they point
+//     at the trusted CMS origin itself (rewritten to a relative path);
+//     anything else is dropped. The incoming request origin is never used
+//     as an allowlist base for redirect decisions.
 //   * Only standard web methods are forwarded; everything else is a 405.
 //   * Portal-internal headers (x-abrit-service-token, authorization, the
 //     abrit_session cookie) are never forwarded to the CMS.
 //   * The request body is streamed with a byte cap; the upstream call has a
 //     timeout; the CMS-down path returns a branded, controlled response.
-//   * Absolute redirect Locations that do not point at the CMS are dropped
-//     (open-redirect hardening), same-origin ones are rewritten to relative.
 export const dynamic = "force-dynamic";
 
 // Methods the CMS behind this proxy may serve. Anything else (OPTIONS,
@@ -151,6 +159,70 @@ function parseTarget(configured: string): URL | null {
 }
 
 /**
+ * PUBLIC-FACING HOSTS the proxy may report to the CMS (P1-2).
+ *
+ * The CMS (Orchard) generates absolute URLs — redirects, canonical links,
+ * password-reset links — from the Host / X-Forwarded-Host it receives.
+ * Those values must describe the deployment's REAL public origin (what the
+ * user's browser uses), never whatever an inbound request happens to carry.
+ *
+ * Trust chain, in order:
+ *   1. ABRIT_TRUSTED_PUBLIC_HOSTS — explicit operator allowlist (comma or
+ *      space separated, e.g. "portal.example.com, www.portal.example.com").
+ *      Only hosts from this list may be forwarded upstream; a request whose
+ *      Host is not on the list gets the first (primary) configured host.
+ *   2. The inbound request Host — accepted ONLY when the operator has
+ *      explicitly trusted the edge proxy via ABRIT_TRUST_PROXY_HEADERS=true
+ *      (the documented production topology: an operator-controlled
+ *      TLS-terminating reverse proxy in front of the portal that pins the
+ *      public Host itself).
+ *   3. Fallback (untrusted, the default): the proxy reports the TARGET host
+ *      so the CMS keeps a stable, deployment-configured identity; nothing
+ *      client-controlled is ever forwarded.
+ */
+function isOperatorTrustedProxy(): boolean {
+  return (process.env.ABRIT_TRUST_PROXY_HEADERS ?? "").trim().toLowerCase() === "true";
+}
+
+/** Parses ABRIT_TRUSTED_PUBLIC_HOSTS into bare host / host:port entries. */
+function configuredPublicHosts(): string[] {
+  const configured = (process.env.ABRIT_TRUSTED_PUBLIC_HOSTS ?? "").trim();
+  if (!configured) return [];
+  const hosts: string[] = [];
+  for (const entry of configured.split(/[\s,]+/)) {
+    const host = entry.trim().toLowerCase();
+    // Bare hostname or host:port only — scheme or userinfo tricks rejected.
+    if (host && /^[a-z0-9.-]+(:\d+)?$/.test(host)) hosts.push(host);
+  }
+  return hosts;
+}
+
+/**
+ * Resolves the Host / X-Forwarded-Host values the proxy reports upstream
+ * (P1-2). Never returns a client-controlled value unless the operator has
+ * explicitly trusted the proxy layer or allowlisted the host.
+ */
+function chooseUpstreamHost(incomingHost: string | null, target: URL): { host: string; xfh: string } {
+  const inbound = (incomingHost ?? "").trim().toLowerCase();
+
+  // 1. Explicit operator allowlist: only allowlisted hosts are forwarded.
+  const allow = configuredPublicHosts();
+  if (allow.length > 0) {
+    if (inbound && allow.includes(inbound)) return { host: inbound, xfh: inbound };
+    return { host: allow[0], xfh: allow[0] };
+  }
+
+  // 2. Operator explicitly trusts the edge proxy to pin the public Host.
+  if (isOperatorTrustedProxy()) {
+    const host = inbound || target.host;
+    return { host, xfh: host };
+  }
+
+  // 3. Default (untrusted): forward the deployment-configured target host.
+  return { host: target.host, xfh: target.host };
+}
+
+/**
  * Builds the upstream URL with an IMMUTABLE origin: the path is rebuilt from
  * the (already URL-decoded) catch-all segments, each re-encoded with
  * encodeURIComponent — so "//evil.com", "\\evil.com" or "%2F%2Fevil.com"
@@ -202,9 +274,26 @@ async function proxy(request: Request, context: { params: Promise<{ path?: strin
   headers.delete("x-abrit-service-token");
   headers.delete("authorization");
   stripPortalSessionCookie(headers);
-  headers.set("host", incoming.host);
-  headers.set("x-forwarded-host", incoming.host);
-  if (!headers.has("x-forwarded-proto")) headers.set("x-forwarded-proto", incoming.protocol.slice(0, -1));
+  // P1-2: the upstream Host / X-Forwarded-Host are derived from trusted
+  // configuration only — the inbound (possibly spoofed) Host is used solely
+  // when the operator allowlisted it or explicitly trusted the edge proxy.
+  // A spoofed incoming Host can never change what the CMS believes its
+  // public origin is.
+  const trustedProxy = isOperatorTrustedProxy();
+  const upstreamHost = chooseUpstreamHost(request.headers.get("host"), target);
+  headers.set("host", upstreamHost.host);
+  headers.set("x-forwarded-host", upstreamHost.xfh);
+  // The whole forwarded-header family is client-settable; an untrusted
+  // deployment never passes client values through to the CMS.
+  if (!trustedProxy) {
+    headers.delete("x-forwarded-proto");
+    headers.delete("x-forwarded-for");
+    headers.delete("x-real-ip");
+    headers.delete("forwarded");
+    headers.set("x-forwarded-proto", target.protocol.slice(0, -1));
+  } else if (!headers.has("x-forwarded-proto")) {
+    headers.set("x-forwarded-proto", incoming.protocol.slice(0, -1));
+  }
 
   const acceptsHtml = (request.headers.get("accept") ?? "").includes("text/html");
   const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body != null;
@@ -236,10 +325,14 @@ async function proxy(request: Request, context: { params: Promise<{ path?: strin
     if (location) {
       try {
         const redirect = new URL(location, target);
+        // P1-2: redirects are only honored when they point at the TRUSTED CMS
+        // origin (rewritten to a relative, host-independent path). Everything
+        // else is dropped — the decision never involves the incoming request
+        // origin, so a spoofed Host cannot smuggle an open redirect past the
+        // old `redirect.origin !== incoming.origin` passthrough.
         if (redirect.origin === target.origin) {
-          // Same-origin absolute redirects become relative (host-independent).
           responseHeaders.set("location", redirect.pathname + redirect.search + redirect.hash);
-        } else if (redirect.origin !== incoming.origin) {
+        } else {
           // Absolute redirects to ANY other origin are dropped — the CMS never
           // legitimately bounces users to third parties, and forwarded Host
           // headers must not be able to forge such a redirect (open redirect).
