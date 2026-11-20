@@ -5,7 +5,7 @@ This guide deploys the complete stack with Docker Compose:
 | Service | Image base | Port (host) | Purpose |
 |---|---|---|---|
 | `db` | `postgres:16-alpine` | internal only | `abrit_portal` (Prisma) + `abrit_orchard` (YesSql) |
-| `portal` | built from `Dockerfile` (bun → node:22-slim) | `3000` | public site, portal, `/api/*`, reverse proxy to CMS |
+| `portal` | built from `Dockerfile` (bun → node:22-slim) | `127.0.0.1:3000` (loopback by default) | public site, portal, `/api/*`, reverse proxy to CMS |
 | `cms` | built from `orchard/Dockerfile` (.NET 10) | `127.0.0.1:5001` (loopback debug only) | Orchard Core administration |
 
 > Honesty note: the Docker artifacts were authored and syntax-validated in a
@@ -19,12 +19,20 @@ This guide deploys the complete stack with Docker Compose:
 - Docker 24+ with the Compose v2 plugin (`docker compose version`)
 - 2 GB+ free RAM for the stack; ~4 GB disk for images
 - For production: a public HTTPS origin with TLS termination (reverse proxy
-  or cloud LB) in front of `portal:3000`. That edge MUST overwrite (not
-  append) `x-real-ip` / `x-forwarded-for` and pin `Host`; when it does, set
-  `ABRIT_TRUST_PROXY_HEADERS=true` and list your public host names in
-  `ABRIT_TRUSTED_PUBLIC_HOSTS` (see §2). If the edge cannot guarantee this,
-  leave both unset — the portal then refuses to trust client-supplied
-  forwarding headers (final-remediation §3).
+  or cloud LB) in front of `portal:3000`. The portal's published port binds
+  to **127.0.0.1 by default** (`PORTAL_BIND`), so with the reverse proxy on
+  the Docker host, public traffic can only arrive through it — direct
+  network access to the portal cannot bypass the proxy-header trust
+  contract (final-integration FSR-8). If your reverse proxy runs INSIDE the
+  Docker network instead, remove the portal `ports` publishing (or scope it)
+  and keep traffic on the private `abrit` network.
+- The edge proxy MUST overwrite (not append) `x-real-ip` /
+  `x-forwarded-for`, pin `Host`, and set `x-forwarded-proto` to the real
+  scheme (`http`/`https`). When it does, set `ABRIT_TRUST_PROXY_HEADERS=true`
+  and list your public host names in `ABRIT_TRUSTED_PUBLIC_HOSTS` (see §2).
+  If the edge cannot guarantee this, leave both unset — the portal then
+  refuses to trust client-supplied forwarding headers (final-remediation §3,
+  unified in final-integration FSR-5).
 
 ## 2. Configuration
 
@@ -41,13 +49,16 @@ Mandatory values in `.env`:
 | `OTP_HMAC_SECRET` | **Required in production** — dedicated HMAC secret for OTP / recovery-code hashing (audit §3.5). Generate: `openssl rand -hex 32`. No implicit fallback exists (the former ABRIT_SERVICE_TOKEN fallback was removed by engineering review). Rotation: move the old value to `OTP_HMAC_SECRET_PREVIOUS`. |
 | `SMSIR_API_KEY`, `SMSIR_TEMPLATE_ID` | Real SMS.ir Verify credentials. Without them keep `OTP_DELIVERY_MODE=display` — **isolated development only**, production must be `sms`. |
 | `ABRIT_PAYMENTS_PUBLIC_BASE_URL` | **Required in production.** The public HTTPS origin used to build gateway callback URLs (never derived from Host headers). |
-| `ABRIT_TRUSTED_PUBLIC_HOSTS` | **Recommended when a reverse proxy fronts the portal.** Comma/space-separated public host names (e.g. `portal.example.com, www.portal.example.com`). The CMS proxy only reports these hosts upstream (`Host` / `X-Forwarded-Host`) — an inbound request carrying any other Host header cannot influence CMS-generated URLs or redirects (final-remediation P1-2). |
-| `ABRIT_TRUST_PROXY_HEADERS` | Set to `true` **only** when an operator-controlled reverse proxy is in front of the portal AND that proxy pins `Host` and overwrites `x-real-ip` / `x-forwarded-for` (the repo's Caddy gateway template does exactly this; so do standard Caddy/Nginx TLS edges). It switches (1) the CMS proxy to forward the inbound `Host`/`X-Forwarded-*` and (2) the public rate limiter to per-client-IP keys. Leave `false` otherwise: Host is then derived from configuration and rate limiting uses one shared bucket — spoofed client headers are ignored. |
+| `ABRIT_TRUSTED_PUBLIC_HOSTS` | **Recommended when a reverse proxy fronts the portal.** Comma/space-separated public host names (e.g. `portal.example.com, www.portal.example.com`). The ONLY way an inbound Host header is promoted to the CMS's public host (`Host` / `X-Forwarded-Host` upstream) — in EVERY trust mode (final-integration FSR-6). An inbound request carrying any other Host header cannot influence CMS-generated URLs or redirects; redirect Locations under these hosts are rewritten to safe relative paths. |
+| `ABRIT_TRUST_PROXY_HEADERS` | Set to `true` **only** when an operator-controlled reverse proxy is in front of the portal AND that proxy pins `Host` and OVERWRITES `x-real-ip` / `x-forwarded-for` (the repo's Caddy gateway template does exactly this; so do standard Caddy/Nginx TLS edges). It switches the SHARED client-IP resolver (login/OTP/recovery throttles, session ipHash, contact/quote rate limits — final-integration FSR-5) to per-client keys: `x-real-ip` when it is a bare valid IP, else the RIGHTMOST valid `x-forwarded-for` member (never the spoofable first member); invalid values fail closed to the single shared bucket. The CMS proxy additionally forwards `x-forwarded-for` and validates `x-forwarded-proto` (http/https only), `x-real-ip` (IP literal only) and `x-forwarded-port` (numeric only). The public Host STILL requires `ABRIT_TRUSTED_PUBLIC_HOSTS` — the flag alone never trusts the inbound Host. Leave `false` otherwise: Host is derived from configuration and all callers share one rate-limit bucket — spoofed client headers are ignored and limits stay active. |
 | `NEXTCLOUD_MODE=live` + `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_APP_PASSWORD` | AbrIT Drive production integration. `simulation` deliberately refuses to run when `NODE_ENV=production`. `NEXTCLOUD_ALLOW_INSECURE` is ignored in production (HTTPS only). |
 
 Portal/CMS host ports (optional overrides): `PORTAL_PORT` (default 3000),
-`CMS_PORT` (default 5001). The CMS debug port is bound to **127.0.0.1 by
-default** — administration belongs behind the public proxy at
+`PORTAL_BIND` (default **127.0.0.1** — the published portal port binds to
+loopback so public traffic must arrive through the host's TLS reverse proxy;
+`docker/compose.dev.yml` overrides this to `0.0.0.0` for local development).
+The CMS debug port is likewise bound to **127.0.0.1 by default** —
+administration belongs behind the public proxy at
 `https://<your-domain>/admin`. `CMS_BIND` can override the bind address for
 isolated development environments only.
 
@@ -174,6 +185,12 @@ docker run --rm --volumes-from abrit-cms -v "$PWD":/backup alpine \
 
 - [ ] TLS terminates in front of `portal`; `ABRIT_PAYMENTS_PUBLIC_BASE_URL`
       set to that public origin.
+- [ ] `PORTAL_BIND` left at the `127.0.0.1` default — public traffic must
+      arrive through the host's TLS reverse proxy; direct access to the
+      portal port must not bypass the proxy-header trust contract
+      (final-integration FSR-8). If the reverse proxy runs inside Docker,
+      remove/scope the published portal port and keep traffic on the private
+      `abrit` network.
 - [ ] `OTP_DELIVERY_MODE=sms` with real SMS.ir credentials (never `display`).
 - [ ] `NEXTCLOUD_MODE=live` with real Drive admin app-password (HTTPS base URL;
       `NEXTCLOUD_ALLOW_INSECURE` is ignored in production).

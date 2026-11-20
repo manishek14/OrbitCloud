@@ -206,17 +206,41 @@ describe("P1-2 — forwarded header checks in operator trust modes", () => {
     expect(new URL(captures[0].url).host).toBe("cms.internal:5000");
   });
 
-  test("8b. trusted-proxy mode (ABRIT_TRUST_PROXY_HEADERS=true): inbound Host and proto pass through, spoofed XFF is preserved only from the trusted edge", async () => {
+  test("8b. trusted-proxy mode + allowlist: Host forwarded, XFP from the edge ACTUALLY asserted, XFF passes on", async () => {
+    // FSR-6 (fix for "test title without assertion"): the x-forwarded-proto
+    // value is now genuinely controlled. Trusted-proxy mode is also no longer
+    // blind trust — the public Host is only honored because it is explicitly
+    // allowlisted (without an allowlist the target host is used, see 8d).
     process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    process.env.ABRIT_TRUSTED_PUBLIC_HOSTS = "portal.example.com";
     await call("/admin", {
       routeSegments: ["admin"],
-      headers: { host: "portal.example.com", "x-forwarded-for": "203.0.113.9" },
+      headers: {
+        host: "portal.example.com",
+        "x-forwarded-for": "203.0.113.9",
+        "x-forwarded-proto": "https",
+      },
     });
     const forwarded = captures[0].headers;
     expect(forwarded.get("host")).toBe("portal.example.com");
     expect(forwarded.get("x-forwarded-host")).toBe("portal.example.com");
+    expect(forwarded.get("x-forwarded-proto")).toBe("https"); // asserted, not just titled
     // In trusted mode the edge owns these headers; the proxy passes them on.
     expect(forwarded.get("x-forwarded-for")).toBe("203.0.113.9");
+  });
+
+  test("8d. trusted-proxy mode WITHOUT an allowlist is NOT blind trust: the inbound Host is not forwarded (FSR-6)", async () => {
+    // Enabling ABRIT_TRUST_PROXY_HEADERS=true alone must not let a client
+    // that reaches the portal directly poison the CMS's public Host.
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    delete process.env.ABRIT_TRUSTED_PUBLIC_HOSTS;
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { host: "evil.direct-access.test" },
+    });
+    const forwarded = captures[0].headers;
+    expect(forwarded.get("host")).toBe("cms.internal:5000");
+    expect(forwarded.get("x-forwarded-host")).toBe("cms.internal:5000");
   });
 
   test("8c. forged Host with userinfo/scheme tricks in the allowlist is ignored (host syntax validation)", async () => {
@@ -230,5 +254,198 @@ describe("P1-2 — forwarded header checks in operator trust modes", () => {
     const forwarded = captures[0].headers;
     expect(forwarded.get("host")).toBe("portal.example.com:8443");
     expect(forwarded.get("x-forwarded-host")).toBe("portal.example.com:8443");
+  });
+});
+
+// ============================================================================
+// FSR-6 — complete forwarded-header control (final-integration remediation).
+//
+// The P1-2 pass covered Host/XFH/XFP/XFF/x-real-ip/Forwarded in UNTRUSTED
+// mode, but left gaps that are closed here and asserted below:
+//   • x-forwarded-port was never touched (forwarded as-is in every mode);
+//   • trusted mode passed x-forwarded-proto through blindly (any value);
+//   • trusted mode accepted ANY inbound Host without an allowlist (8d above);
+//   • trusted mode forwarded x-real-ip without validating it as an IP;
+//   • the RFC 7239 Forwarded header was only stripped in untrusted mode.
+// ============================================================================
+describe("FSR-6 — complete forwarded-header control", () => {
+  test("f1. x-forwarded-port is stripped in untrusted mode (previously forwarded untouched)", async () => {
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-port": "8443" },
+    });
+    expect(captures[0].headers.get("x-forwarded-port")).toBeNull();
+  });
+
+  test("f2. trusted mode: a VALID x-real-ip passes; an invalid one is stripped", async () => {
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-real-ip": "203.0.113.10" },
+    });
+    expect(captures[0].headers.get("x-real-ip")).toBe("203.0.113.10");
+
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-real-ip": "evil.attacker.test" },
+    });
+    expect(captures[1].headers.get("x-real-ip")).toBeNull();
+  });
+
+  test("f3. trusted mode: x-forwarded-port passes only as a bare numeric port", async () => {
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-port": "443" },
+    });
+    expect(captures[0].headers.get("x-forwarded-port")).toBe("443");
+
+    for (const bad of ["99999", "0", "8443;evil", "https"]) {
+      await call("/admin", {
+        routeSegments: ["admin"],
+        headers: { "x-forwarded-port": bad },
+      });
+      expect(captures[captures.length - 1].headers.get("x-forwarded-port")).toBeNull();
+    }
+  });
+
+  test("f4. x-forwarded-proto is validated in trusted mode: anything but http/https is replaced by the target scheme", async () => {
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-proto": "gopher" },
+    });
+    expect(captures[0].headers.get("x-forwarded-proto")).toBe("http"); // target scheme, never the spoofed value
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-proto": "HTTPS" },
+    });
+    expect(captures[1].headers.get("x-forwarded-proto")).toBe("https"); // case-insensitive VALID value honored
+  });
+
+  test("f5. the RFC 7239 Forwarded header is stripped in BOTH modes", async () => {
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { forwarded: "for=9.9.9.9;host=evil.attacker.test;proto=https" },
+    });
+    expect(captures[0].headers.get("forwarded")).toBeNull();
+
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { forwarded: "for=9.9.9.9;host=evil.attacker.test;proto=https" },
+    });
+    expect(captures[1].headers.get("forwarded")).toBeNull();
+  });
+
+  test("f6. a spoofed x-forwarded-host is ALWAYS overwritten — in every mode (it is never a trust input)", async () => {
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-host": "evil.attacker.test" },
+    });
+    expect(captures[0].headers.get("x-forwarded-host")).toBe("cms.internal:5000");
+
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-host": "evil.attacker.test", host: "also-evil.test" },
+    });
+    expect(captures[1].headers.get("x-forwarded-host")).toBe("cms.internal:5000");
+  });
+});
+
+// ============================================================================
+// FSR-6 — redirect hardening: network-path references, backslashes and
+// encoded tricks must NEVER survive as a Location, not even when the
+// upstream's absolute URL points at the REAL CMS origin (the dangerous
+// "http://cms:5000//evil.test/x" re-serialization trap).
+// ============================================================================
+describe("FSR-6 — redirect hardening (network-path / backslash / encoded)", () => {
+  function redirectCase(name: string, location: string, expected: string) {
+    test(name, async () => {
+      upstreamResponse = () => new Response(null, { status: 302, headers: { location } });
+      const response = await call("/admin", { routeSegments: ["admin"] });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe(expected);
+    });
+  }
+
+  redirectCase("r1. scheme-relative //evil.example/path → \"/\"", "//evil.example/phish", "/");
+  redirectCase("r2. backslash \\\\evil.example\\path → \"/\"", "\\\\evil.example\\path", "/");
+  redirectCase("r3. mixed /\\evil.example/path → \"/\"", "/\\evil.example/path", "/");
+  redirectCase(
+    "r4. a path containing a backslash is NORMALIZED (/foo\\bar → /foo/bar), never kept raw",
+    "/foo\\bar",
+    "/foo/bar",
+  );
+  redirectCase(
+    "r5. absolute CMS-origin Location with a dangerous // path → \"/\" (re-serialization trap)",
+    "http://cms.internal:5000//evil.example/x",
+    "/",
+  );
+  redirectCase(
+    "r6. encoded slashes stay a safe relative path (browsers keep %2F encoded)",
+    "/%2F%2Fevil.example",
+    "/%2F%2Fevil.example",
+  );
+  redirectCase(
+    "r7. absolute CMS-origin Location with an encoded-backslash path → normalized safely",
+    "http://cms.internal:5000/x%5C%5Cevil.example",
+    "/x%5C%5Cevil.example",
+  );
+
+  test("r8. allowlisted public host redirects are trusted and relativized (normal operator mode)", async () => {
+    process.env.ABRIT_TRUSTED_PUBLIC_HOSTS = "portal.example.com";
+    upstreamResponse = () =>
+      new Response(null, { status: 302, headers: { location: "https://portal.example.com/Admin/Next?x=1" } });
+    const response = await call("/admin", { routeSegments: ["admin"] });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/Admin/Next?x=1");
+  });
+
+  test("r9. a spoofed x-forwarded-proto never affects the redirect decision (or the forwarded header)", async () => {
+    upstreamResponse = () =>
+      new Response(null, { status: 302, headers: { location: "http://evil.attacker.test/phish" } });
+    const response = await call("/admin", {
+      routeSegments: ["admin"],
+      headers: { "x-forwarded-proto": "gopher", host: "evil.attacker.test" },
+    });
+    expect(response.headers.get("location")).toBe("/"); // dropped — decision is target-based only
+    expect(captures[0].headers.get("x-forwarded-proto")).toBe("http"); // spoofed proto replaced upstream too
+  });
+
+  test("r10. normal proxy behavior preserved (untrusted): plain 200 passthrough keeps Host/XFH/XFP contract", async () => {
+    const response = await call("/admin", { routeSegments: ["admin"] });
+    expect(response.status).toBe(200);
+    const forwarded = captures[0].headers;
+    expect(forwarded.get("host")).toBe("cms.internal:5000");
+    expect(forwarded.get("x-forwarded-host")).toBe("cms.internal:5000");
+    expect(forwarded.get("x-forwarded-proto")).toBe("http");
+    expect(forwarded.get("x-forwarded-for")).toBeNull();
+    expect(forwarded.get("x-real-ip")).toBeNull();
+    expect(forwarded.get("forwarded")).toBeNull();
+  });
+
+  test("r11. normal proxy behavior preserved (trusted + allowlist): the documented edge contract is honored", async () => {
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+    process.env.ABRIT_TRUSTED_PUBLIC_HOSTS = "portal.example.com";
+    const response = await call("/admin", {
+      routeSegments: ["admin"],
+      headers: {
+        host: "portal.example.com",
+        "x-forwarded-proto": "https",
+        "x-real-ip": "203.0.113.9",
+        "x-forwarded-for": "203.0.113.9",
+        "x-forwarded-port": "443",
+      },
+    });
+    expect(response.status).toBe(200);
+    const forwarded = captures[0].headers;
+    expect(forwarded.get("host")).toBe("portal.example.com");
+    expect(forwarded.get("x-forwarded-host")).toBe("portal.example.com");
+    expect(forwarded.get("x-forwarded-proto")).toBe("https");
+    expect(forwarded.get("x-real-ip")).toBe("203.0.113.9");
+    expect(forwarded.get("x-forwarded-for")).toBe("203.0.113.9");
+    expect(forwarded.get("x-forwarded-port")).toBe("443");
   });
 });

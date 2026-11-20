@@ -14,7 +14,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { computeQuote } from "@/lib/commerce/quote";
 import { apiError, handleRouteError, readJson } from "@/lib/api/http";
-import { clientIpKey, consumeRateLimit } from "@/lib/rate-limit/memory";
+// FSR-5: the client-IP key comes from the SHARED resolver; only the limiter
+// itself stays in the rate-limit module.
+import { clientIpKey } from "@/lib/net/client-ip";
+import { consumeRateLimit } from "@/lib/rate-limit/memory";
 
 // Abuse protection for the unauthenticated quote endpoint (audit §3.3):
 // 30 computations per IP per minute.

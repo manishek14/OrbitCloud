@@ -11,6 +11,22 @@
 #   LISTENER: 127.0.0.1 only — the dynamic preview feature is a development/
 #   sandbox concern and must never be exposed publicly. Public traffic belongs
 #   to the real production reverse proxy in front of the portal container.
+#
+# PRODUCTION EDGE CONTRACT (final-integration FSR-8 §5.3): this file is the
+# PREVIEW/SANDBOX gateway, not a production configuration. If you run Caddy as
+# the production edge in front of the portal, your site block MUST satisfy the
+# same contract before setting ABRIT_TRUST_PROXY_HEADERS=true:
+#   • `header_up Host {host}`                    — pin the public Host (the
+#     portal only honors it when ABRIT_TRUSTED_PUBLIC_HOSTS lists it).
+#   • `header_up X-Forwarded-Proto {scheme}`     — overwrite, never append.
+#   • `header_up X-Real-IP {remote_host}`        — overwrite with the REAL
+#     peer address (never a client-supplied value).
+#   • `header_up X-Forwarded-For {remote_host}`  — REPLACE, not append: the
+#     portal's shared resolver trusts only the RIGHTMOST XFF member, so an
+#     appending edge (`$proxy_add_x_forwarded_for` in nginx) must not let a
+#     client-influenced member become the trusted one.
+#   • Do not publish the portal container port (PORTAL_BIND loopback default)
+#     — direct access to the portal must not be able to bypass this edge.
 # =============================================================================
 
 127.0.0.1:81 {

@@ -28,10 +28,13 @@
 //     { mobile }) delivered through SMS.ir — see /api/auth/recover/capabilities.
 // ============================================================================
 
-import { createHash, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { hashGrantCode, verifyGrantCode } from "@/lib/auth/grant-hash";
+// FSR-5: the client IP hash comes from the SHARED resolver — this module must
+// not read x-real-ip / x-forwarded-for on its own.
+import { clientIpHash } from "@/lib/net/client-ip";
 
 export type RecoveryDeliveryMode = "display" | "email";
 
@@ -108,20 +111,6 @@ export function recoveryDeliveryMode(): RecoveryDeliveryMode {
 /** Whether the EMAIL recovery channel can actually deliver right now. */
 export function emailRecoveryAvailable(): boolean {
   return recoveryDeliveryMode() === "email" && emailProviderConfigured();
-}
-
-function sha256(value: string): string {
-  // Small helper kept for the client IP hash (a NON-secret, non-brute-forceable
-  // value — keyed hashing is not required for IP pseudonymization).
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
-/** Client IP from the trusted gateway headers (never arbitrary client headers). */
-export function clientIpHash(request: Request): string {
-  const realIp = request.headers.get("x-real-ip");
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = (realIp && realIp.trim()) || (forwarded ? forwarded.split(",")[0].trim() : "") || "unknown";
-  return sha256(`ip:${ip}`);
 }
 
 function generateCode(): string {

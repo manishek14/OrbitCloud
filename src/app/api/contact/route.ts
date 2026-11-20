@@ -2,7 +2,10 @@
 import { NextResponse } from "next/server";
 import { ticketService } from "@/lib/support/tickets";
 import { handleRouteError, readJson } from "@/lib/api/http";
-import { clientIpKey, consumeRateLimit } from "@/lib/rate-limit/memory";
+// FSR-5: the client-IP key comes from the SHARED resolver; only the limiter
+// itself stays in the rate-limit module.
+import { clientIpKey } from "@/lib/net/client-ip";
+import { consumeRateLimit } from "@/lib/rate-limit/memory";
 
 // Abuse protection for the unauthenticated guest form (audit §3.3):
 // 5 submissions per IP per 10 minutes.

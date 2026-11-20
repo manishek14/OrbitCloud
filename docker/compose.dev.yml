@@ -20,6 +20,12 @@ services:
       # Isolated dev value for the mandatory grant-hashing secret (production
       # must generate its own: openssl rand -hex 32).
       OTP_HMAC_SECRET: abrit_dev_only_grant_hmac_key
+    ports: !override
+      # Dev override (final-integration FSR-8): the base compose binds the
+      # portal to loopback (production boundary); local development keeps the
+      # previous all-interfaces binding so dev containers / VMs / colleagues
+      # on the LAN can still reach http://<host>:3000 directly.
+      - "${PORTAL_BIND:-0.0.0.0}:${PORTAL_PORT:-3000}:3000"
   cms:
     environment:
       OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=abrit_dev_pw
