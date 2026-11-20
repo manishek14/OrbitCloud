@@ -478,11 +478,22 @@ verification is queued for CI + first deployment.
 ## 16–17. GitHub commit / branch
 
 - Branch: `audit/orbitcloud-comprehensive-fixes` (from `master` @ `6428268`)
-- Commit SHA, URLs and PR link: appended below after the push verification.
+  - Branch URL: https://github.com/manishek14/OrbitCloud/tree/audit/orbitcloud-comprehensive-fixes
+- Main audit commit: `a64abfd1e97a41534a9a5f3acd004e8c1e490f90`
+  - Commit URL: https://github.com/manishek14/OrbitCloud/commit/a64abfd1e97a41534a9a5f3acd004e8c1e490f90
+  - (this appendix is a small follow-up commit on the same branch)
 - Git author: `manishek14 <manishekofteh@gmail.com>` (the account owner's
-  identity, matching the initial commit).
-- No secrets, tokens, or database backups are included in the commit
-  (verified by scanning the staged tree before commit).
+  identity, matching the initial commit; verified on the remote).
+- Pushed with a temporary credential helper — the token is NOT in the remote
+  URL, the commit, or any file.
+- Verified after push: remote branch SHA matches the local SHA; 12 files
+  added / 30 modified / 357 removed vs `master`; **no secrets, no `.env`, no
+  database backups, no hygiene violations in the pushed tree**.
+- Pull Request: the provided token has repository **content** write access
+  (push succeeded) but lacks the `pull_requests: write` permission, so the PR
+  could not be created through the API. Create it manually at:
+  https://github.com/manishek14/OrbitCloud/pull/new/audit/orbitcloud-comprehensive-fixes
+  (or grant the token the `Pull requests: Read and write` permission).
 
 ## 18. Production readiness assessment
 
