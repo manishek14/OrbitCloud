@@ -1,10 +1,16 @@
-@model IReadOnlyList<CommerceCustomer>
+@model CommerceCustomerPage
 @{
     var query = (string?)ViewBag.Query;
+    var page = Model.Page;
+    var totalPages = Math.Max(1, Model.TotalPages);
+    var total = Model.Total;
+    var searchSuffix = string.IsNullOrWhiteSpace(query) ? "" : $"&query={Uri.EscapeDataString(query)}";
+    var prevUrl = $"/Admin/AbrIT/Customers?page={Math.Max(1, page - 1)}{searchSuffix}";
+    var nextUrl = $"/Admin/AbrIT/Customers?page={page + 1}{searchSuffix}";
 }
 <div class="abrit-ops">
     <a class="abrit-ops__back" href="/Admin/AbrIT">بازگشت به داشبورد</a>
-    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>مشتریان</h1><p>@Model.Count حساب — از منبع کانونی (PostgreSQL) خوانده شده است.</p></header>
+    <header class="abrit-ops__page-heading"><span class="abrit-ops__eyebrow">مدیریت کسب‌وکار</span><h1>مشتریان</h1><p>@ViewFormats.FaNumber(total) حساب — از منبع کانونی (PostgreSQL) خوانده شده است؛ صفحه @ViewFormats.FaNumber(page) از @ViewFormats.FaNumber(totalPages).</p></header>
     <form class="abrit-ops__filters" method="get" action="/Admin/AbrIT/Customers">
         <label for="customer-query">جست‌وجو بر اساس نام، ایمیل یا شماره همراه</label>
         <div>
@@ -13,7 +19,7 @@
             @if (!string.IsNullOrWhiteSpace(query)) { <a href="/Admin/AbrIT/Customers">پاک‌کردن</a> }
         </div>
     </form>
-    @if (Model.Count == 0)
+    @if (Model.Items.Count == 0)
     {
         <p class="abrit-ops__muted">مشتری‌ای یافت نشد.</p>
     }
@@ -24,12 +30,12 @@
                 <caption class="sr-only">فهرست مشتریان AbrIT</caption>
                 <thead><tr><th scope="col">مشتری</th><th scope="col">شماره همراه</th><th scope="col">سفارش‌ها</th><th scope="col">مجموع پرداخت (تومان)</th><th scope="col">Drive</th><th scope="col">اشتراک فعال</th><th scope="col">وضعیت</th></tr></thead>
                 <tbody>
-                @foreach (var c in Model)
+                @foreach (var c in Model.Items)
                 {
                     <tr>
                         <td><a href="/Admin/AbrIT/Customers/@c.Id"><strong>@(c.Name ?? "—")</strong><small dir="ltr">@c.Email</small></a></td>
                         <td dir="ltr">@(c.Mobile ?? "—")</td>
-                        <td>@c.OrderCount</td>
+                        <td>@ViewFormats.FaNumber(c.OrderCount)</td>
                         <td>@ViewFormats.FaToman(c.PaidTotalToman)</td>
                         <td>@(c.HasDrive ? "فعال" : "—")</td>
                         <td>@(c.ActiveSubscription ?? "—")</td>
@@ -39,5 +45,21 @@
                 </tbody>
             </table>
         </div>
+        @if (totalPages > 1)
+        {
+            <nav class="abrit-ops__filters" aria-label="صفحه‌بندی مشتریان">
+                <div>
+                    @if (page > 1)
+                    {
+                        <a href="@prevUrl">صفحه قبل</a>
+                    }
+                    <span class="abrit-ops__muted">صفحه @ViewFormats.FaNumber(page) از @ViewFormats.FaNumber(totalPages)</span>
+                    @if (page < totalPages)
+                    {
+                        <a href="@nextUrl">صفحه بعد</a>
+                    }
+                </div>
+            </nav>
+        }
     }
 </div>

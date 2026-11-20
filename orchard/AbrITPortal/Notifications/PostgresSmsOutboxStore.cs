@@ -7,7 +7,33 @@ namespace AbrITPortal.Notifications;
 public sealed class PostgresSmsOutboxStore : ISmsOutboxStore
 {
     private readonly string _connectionString;
+    private readonly SemaphoreSlim _schemaLock = new(1, 1);
+    private volatile bool _schemaEnsured;
+
     public PostgresSmsOutboxStore(string connectionString) => _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+
+    /// <summary>
+    /// Ensures (once per process, lazily, with retry on failure) that the
+    /// durable outbox table and its indexes exist. Full-remediation audit
+    /// §4.5: EnsureSchemaAsync previously had NO call sites, so even a
+    /// configured Postgres store would fail on first use until someone ran
+    /// the DDL by hand. Every public entry point awaits this first.
+    /// </summary>
+    private async Task EnsureSchemaOnceAsync(CancellationToken ct)
+    {
+        if (_schemaEnsured) return;
+        await _schemaLock.WaitAsync(ct);
+        try
+        {
+            if (_schemaEnsured) return;
+            await EnsureSchemaAsync(ct);
+            _schemaEnsured = true;
+        }
+        finally
+        {
+            _schemaLock.Release();
+        }
+    }
 
     public async Task EnsureSchemaAsync(CancellationToken ct)
     {
@@ -51,6 +77,7 @@ CREATE INDEX IF NOT EXISTS ix_abrit_sms_outbox_lease ON abrit_sms_outbox(status,
 
     public async Task<SmsOutboxMessage?> EnqueueAsync(SmsOutboxMessage message, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         message.CreatedUtc = DateTimeOffset.UtcNow;
         message.NextAttemptUtc ??= message.CreatedUtc;
         await using var conn = new NpgsqlConnection(_connectionString);
@@ -67,6 +94,7 @@ ON CONFLICT (tenant_id, idempotency_key) DO NOTHING RETURNING id";
 
     public async Task<IReadOnlyList<SmsOutboxMessage>> ClaimBatchAsync(string tenantId, string workerId, int take, TimeSpan lease, DateTimeOffset now, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
@@ -106,6 +134,7 @@ RETURNING o.*;";
 
     public async Task MarkSubmittedAsync(Guid id, string? providerMessageId, string? status, string? metadata, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("UPDATE abrit_sms_outbox SET status=@s,provider_message_id=@pm,provider_status=@ps,sanitized_metadata=@m,submitted_utc=@u,processing_lease_until_utc=NULL,protected_payload=NULL WHERE id=@id", conn);
         cmd.Parameters.AddWithValue("s", (int)SmsMessageStatus.Submitted); cmd.Parameters.AddWithValue("pm", (object?)providerMessageId ?? DBNull.Value);
@@ -115,6 +144,7 @@ RETURNING o.*;";
     }
     public async Task MarkRetryAsync(Guid id, SmsFailureCategory category, string? error, DateTimeOffset nextAttemptUtc, bool ambiguousSubmitted, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         var st = ambiguousSubmitted ? SmsMessageStatus.Submitted : SmsMessageStatus.RetryScheduled;
         await using var cmd = new NpgsqlCommand("UPDATE abrit_sms_outbox SET status=@s,failure_category=@fc,last_error=@e,next_attempt_utc=@n,processing_lease_until_utc=NULL WHERE id=@id", conn);
@@ -124,6 +154,7 @@ RETURNING o.*;";
     }
     public async Task MarkFailedAsync(Guid id, SmsFailureCategory category, string? error, bool deadLetter, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("UPDATE abrit_sms_outbox SET status=@s,failure_category=@fc,last_error=@e,completed_utc=@u,processing_lease_until_utc=NULL,protected_payload=NULL WHERE id=@id", conn);
         cmd.Parameters.AddWithValue("s", (int)(deadLetter ? SmsMessageStatus.DeadLetter : SmsMessageStatus.Failed));
@@ -134,6 +165,7 @@ RETURNING o.*;";
 
     public async Task MarkCancelledAsync(Guid id, string reason, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("UPDATE abrit_sms_outbox SET status=@s,last_error=@e,completed_utc=@u,processing_lease_until_utc=NULL,protected_payload=NULL WHERE id=@id", conn);
         cmd.Parameters.AddWithValue("s", (int)SmsMessageStatus.Cancelled); cmd.Parameters.AddWithValue("e", (object?)reason ?? DBNull.Value);
@@ -142,6 +174,7 @@ RETURNING o.*;";
     }
     public async Task<int> RecoverExpiredLeasesAsync(DateTimeOffset now, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("UPDATE abrit_sms_outbox SET status=@retry,next_attempt_utc=@now,processing_lease_until_utc=NULL WHERE status=@proc AND processing_lease_until_utc<=@now", conn);
         cmd.Parameters.AddWithValue("retry", (int)SmsMessageStatus.RetryScheduled); cmd.Parameters.AddWithValue("proc", (int)SmsMessageStatus.Processing); cmd.Parameters.AddWithValue("now", now);
@@ -149,6 +182,7 @@ RETURNING o.*;";
     }
     public async Task<IReadOnlyList<SmsOutboxMessage>> ListAsync(string tenantId, int take, CancellationToken ct)
     {
+        await EnsureSchemaOnceAsync(ct);
         await using var conn = new NpgsqlConnection(_connectionString); await conn.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand("SELECT * FROM abrit_sms_outbox WHERE tenant_id=@t ORDER BY created_utc DESC LIMIT @take", conn);
         cmd.Parameters.AddWithValue("t", tenantId); cmd.Parameters.AddWithValue("take", take);

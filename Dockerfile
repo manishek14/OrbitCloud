@@ -66,5 +66,11 @@ COPY --chmod=0755 docker/portal-entrypoint.sh /app/entrypoint.sh
 RUN chown -R 10001:10001 /app
 USER abrit
 
+# Full-remediation audit §7: the image itself reports health (previously only
+# docker-compose defined a healthcheck — a bare `docker run` reported healthy
+# while the app could be down).
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=10 \
+  CMD curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1
+
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]

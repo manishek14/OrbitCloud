@@ -11,6 +11,8 @@ export async function GET(request: Request) {
     await requireAdminAccess("orders.view", request);
     const txs = await db.transaction.findMany({
       orderBy: { createdAt: "desc" },
+      // Bounded operational window (audit §3.3).
+      take: 500,
       include: { order: true },
     });
     return NextResponse.json(txs.map(toTransactionDTO));

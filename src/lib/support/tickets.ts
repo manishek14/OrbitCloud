@@ -195,6 +195,8 @@ export const ticketService = {
     const tickets = await db.ticket.findMany({
       where: status ? { status } : undefined,
       orderBy: { updatedAt: "desc" },
+      // Bounded operational window (audit §3.3).
+      take: 500,
       include: { user: { select: { email: true, name: true } } },
     });
     return Promise.all(

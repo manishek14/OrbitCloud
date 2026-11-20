@@ -482,6 +482,14 @@ export interface AdminDashboardDTO {
   };
   provisioning: { active: number; disabled: number; total: number };
   recentOrders: Array<OrderListEntryDTO & { customerName: string | null }>;
+  recentTransactions: Array<{
+    ref: string;
+    orderNumber: string | null;
+    gateway: string;
+    amountToman: number;
+    status: string;
+    createdAt: string;
+  }>;
   recentActivity: Array<{
     id: string;
     actorLabel: string;
@@ -506,6 +514,15 @@ export interface AdminCustomerDTO {
   paidTotalToman: number;
   hasDrive: boolean;
   activeSubscription: string | null;
+}
+
+/** Paginated envelope returned by /api/admin/customers and /api/admin/users. */
+export interface AdminCustomerListDTO {
+  items: AdminCustomerDTO[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface AdminOrderDTO extends OrderDTO {

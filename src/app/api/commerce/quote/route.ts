@@ -14,6 +14,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { computeQuote } from "@/lib/commerce/quote";
 import { apiError, handleRouteError, readJson } from "@/lib/api/http";
+import { clientIpKey, consumeRateLimit } from "@/lib/rate-limit/memory";
+
+// Abuse protection for the unauthenticated quote endpoint (audit §3.3):
+// 30 computations per IP per minute.
+const QUOTE_LIMIT = 30;
+const QUOTE_WINDOW_MS = 60 * 1000;
 
 const schema = z.object({
   packageCode: z.string().min(1, { message: "پکیج را انتخاب کنید." }).max(64),
@@ -24,6 +30,13 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const limit = consumeRateLimit(`quote:${clientIpKey(request)}`, QUOTE_LIMIT, QUOTE_WINDOW_MS);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: { code: "TOO_MANY_REQUESTS", message: "تعداد درخواست‌ها از حد مجاز گذشته است؛ کمی بعد دوباره تلاش کنید." } },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
     const body = await readJson<unknown>(request);
     const parsed = schema.safeParse(body);
     if (!parsed.success) {

@@ -8,6 +8,7 @@ import { api } from "./client";
 import type {
   AdminAuditDTO,
   AdminCustomerDTO,
+  AdminCustomerListDTO,
   AdminDashboardDTO,
   AdminDriveAccountDTO,
   AdminMediaDTO,
@@ -504,11 +505,15 @@ export function useAdminDashboard() {
   });
 }
 
-export function useAdminCustomers(query?: string) {
-  return useQuery<AdminCustomerDTO[]>({
-    queryKey: ["admin-customers", query ?? ""],
-    queryFn: () =>
-      api.get<AdminCustomerDTO[]>(`/api/admin/customers${query ? `?query=${encodeURIComponent(query)}` : ""}`),
+export function useAdminCustomers(query?: string, page?: number, pageSize?: number) {
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (page) params.set("page", String(page));
+  if (pageSize) params.set("pageSize", String(pageSize));
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return useQuery<AdminCustomerListDTO>({
+    queryKey: ["admin-customers", query ?? "", page ?? 1, pageSize ?? 50],
+    queryFn: () => api.get<AdminCustomerListDTO>(`/api/admin/customers${suffix}`),
   });
 }
 
@@ -666,9 +671,9 @@ export function useDeleteMedia() {
 }
 
 export function useAdminUsers() {
-  return useQuery<AdminCustomerDTO[]>({
+  return useQuery<AdminCustomerListDTO>({
     queryKey: ["admin-users"],
-    queryFn: () => api.get<AdminCustomerDTO[]>("/api/admin/users"),
+    queryFn: () => api.get<AdminCustomerListDTO>("/api/admin/users"),
   });
 }
 

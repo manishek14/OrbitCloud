@@ -42,12 +42,34 @@ public sealed class CommerceApiException : Exception
 
 public sealed record CommerceTotals(
     int Customers, int ActiveSubscriptions, int NewOrders, int PendingPayments,
-    long ConfirmedRevenueToman, int ActiveDriveAccounts, int PendingTickets);
+    long ConfirmedRevenueToman, int ActiveDriveAccounts, int PendingTickets)
+{
+    /// <summary>Recent orders / transactions / admin activity carried by the
+    /// same dashboard payload. Optional: older portal builds omit them.</summary>
+    public IReadOnlyList<CommerceRecentOrder>? RecentOrders { get; init; }
+    public IReadOnlyList<CommerceRecentTransaction>? RecentTransactions { get; init; }
+    public IReadOnlyList<CommerceRecentActivity>? RecentActivity { get; init; }
+}
+
+public sealed record CommerceRecentOrder(
+    string Id, string OrderNumber, string Status, long TotalToman, string CreatedAt, string? CustomerName);
+
+public sealed record CommerceRecentTransaction(
+    string Ref, string? OrderNumber, string Gateway, long AmountToman, string Status, string CreatedAt);
+
+public sealed record CommerceRecentActivity(
+    string ActorLabel, string Action, string EntityType, string CreatedAt);
 
 public sealed record CommerceCustomer(
     string Id, string Email, string? Name, string? Mobile, string? Company, string Status,
     string CreatedAt, string? LastLoginAt, int OrderCount, long PaidTotalToman,
     bool HasDrive, string? ActiveSubscription);
+
+/// <summary>Paginated customer page — the envelope returned by the portal's
+/// GET api/admin/customers (items + page + pageSize + total + totalPages).
+/// A legacy bare array is tolerated for backward compatibility.</summary>
+public sealed record CommerceCustomerPage(
+    IReadOnlyList<CommerceCustomer> Items, int Page, int PageSize, int Total, int TotalPages);
 
 public sealed record CommerceOrder(
     string Id, string OrderNumber, string Status, int ItemCount, long TotalToman,
@@ -151,25 +173,85 @@ public sealed class CommerceApiClient
         return new CommerceTotals(
             Int(t, "customers"), Int(t, "activeSubscriptions"), Int(t, "newOrders"),
             Int(t, "pendingPayments"), Long(t, "confirmedRevenueToman"),
-            Int(t, "activeDriveAccounts"), Int(t, "pendingTickets"));
+            Int(t, "activeDriveAccounts"), Int(t, "pendingTickets"))
+        {
+            RecentOrders = EnumerateArray(root, "recentOrders", e => new CommerceRecentOrder(
+                Str(e, "id") ?? "", Str(e, "orderNumber") ?? "", Str(e, "status") ?? "",
+                Long(e, "totalToman"), Str(e, "createdAt") ?? "", Str(e, "customerName"))),
+            RecentTransactions = EnumerateArray(root, "recentTransactions", e => new CommerceRecentTransaction(
+                Str(e, "ref") ?? "", Str(e, "orderNumber"), Str(e, "gateway") ?? "",
+                Long(e, "amountToman"), Str(e, "status") ?? "", Str(e, "createdAt") ?? "")),
+            RecentActivity = EnumerateArray(root, "recentActivity", e => new CommerceRecentActivity(
+                Str(e, "actorLabel") ?? "", Str(e, "action") ?? "", Str(e, "entityType") ?? "",
+                Str(e, "createdAt") ?? "")),
+        };
     }
 
-    public async Task<IReadOnlyList<CommerceCustomer>> GetCustomersAsync(string? query = null, CancellationToken ct = default)
+    public async Task<CommerceCustomerPage> GetCustomersAsync(string? query = null, int page = 1, int pageSize = 50, CancellationToken ct = default)
     {
-        var root = await GetJsonAsync(string.IsNullOrEmpty(query) ? "api/admin/customers" : $"api/admin/customers?query={Uri.EscapeDataString(query)}", ct);
-        return EnumerateArray(root, e => new CommerceCustomer(
-            Str(e, "id") ?? "", Str(e, "email") ?? "", Str(e, "name"), Str(e, "mobile"), Str(e, "company"),
-            Str(e, "status") ?? "", Str(e, "createdAt") ?? "", Str(e, "lastLoginAt"),
-            Int(e, "orderCount"), Long(e, "paidTotalToman"), True(e, "hasDrive"), Str(e, "activeSubscription")));
+        var safePage = Math.Max(1, page);
+        var safeSize = Math.Clamp(pageSize, 1, 200);
+        var path = $"api/admin/customers?page={safePage}&pageSize={safeSize}";
+        if (!string.IsNullOrEmpty(query)) path += $"&query={Uri.EscapeDataString(query)}";
+        var root = await GetJsonAsync(path, ct);
+        return ParseCustomerPage(root);
     }
 
     public async Task<CommerceCustomer?> GetCustomerAsync(string id, CancellationToken ct = default)
     {
-        var root = await GetJsonAsync($"api/admin/customers/{Uri.EscapeDataString(id)}", ct);
+        JsonElement root;
+        try
+        {
+            root = await GetJsonAsync($"api/admin/customers/{Uri.EscapeDataString(id)}", ct);
+        }
+        catch (CommerceApiException ex) when (ex.StatusCode == 404)
+        {
+            // Unknown customer → a clean 404 page, not an error page.
+            return null;
+        }
+        if (root.ValueKind != JsonValueKind.Object) return null;
         return new CommerceCustomer(
             Str(root, "id") ?? "", Str(root, "email") ?? "", Str(root, "name"), Str(root, "mobile"), Str(root, "company"),
             Str(root, "status") ?? "", Str(root, "createdAt") ?? "", Str(root, "lastLoginAt"),
             Int(root, "orderCount"), Long(root, "paidTotalToman"), True(root, "hasDrive"), Str(root, "activeSubscription"));
+    }
+
+    /// <summary>Accepts the current {items,…} envelope and the legacy bare
+    /// array so a CMS update never hard-breaks against an older portal.</summary>
+    private static CommerceCustomerPage ParseCustomerPage(JsonElement root)
+    {
+        JsonElement items = default;
+        var page = 1;
+        var pageSize = 0;
+        var total = 0;
+        var totalPages = 1;
+
+        if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var envelope) && envelope.ValueKind == JsonValueKind.Array)
+        {
+            items = envelope;
+            page = Int(root, "page");
+            pageSize = Int(root, "pageSize");
+            total = Int(root, "total");
+            totalPages = Math.Max(1, Int(root, "totalPages"));
+        }
+        else if (root.ValueKind == JsonValueKind.Array)
+        {
+            items = root;
+            total = root.GetArrayLength();
+        }
+
+        var list = new List<CommerceCustomer>();
+        if (items.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var e in items.EnumerateArray())
+            {
+                list.Add(new CommerceCustomer(
+                    Str(e, "id") ?? "", Str(e, "email") ?? "", Str(e, "name"), Str(e, "mobile"), Str(e, "company"),
+                    Str(e, "status") ?? "", Str(e, "createdAt") ?? "", Str(e, "lastLoginAt"),
+                    Int(e, "orderCount"), Long(e, "paidTotalToman"), True(e, "hasDrive"), Str(e, "activeSubscription")));
+            }
+        }
+        return new CommerceCustomerPage(list, Math.Max(1, page), pageSize, total, Math.Max(1, totalPages));
     }
 
     public async Task<IReadOnlyList<CommerceOrder>> GetOrdersAsync(CancellationToken ct = default)

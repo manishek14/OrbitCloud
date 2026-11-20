@@ -61,15 +61,18 @@ public sealed class AbrITBusinessAdminController(CommerceApiClient commerce, ILo
 
     // ------------------------------------------------------------- customers
 
+    private const int CustomersPageSize = 25;
+
     [HttpGet("Customers")]
-    public async Task<IActionResult> Customers(string? query, CancellationToken ct)
+    public async Task<IActionResult> Customers(string? query, int page = 1, CancellationToken ct = default)
     {
         if (!commerce.IsConfigured) return NotConfigured();
         try
         {
-            var customers = await commerce.GetCustomersAsync(query, ct);
+            if (page < 1) page = 1;
+            var result = await commerce.GetCustomersAsync(query, page, CustomersPageSize, ct);
             ViewBag.Query = query;
-            return View("Customers", customers);
+            return View("Customers", result);
         }
         catch (Exception ex) { return Failed(ex); }
     }

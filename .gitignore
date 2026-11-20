@@ -54,8 +54,9 @@ dev.out.log
 server.log
 orchard-runtime.log
 *.pid
-prompt
-test
+# NOTE (full-remediation audit §7): bare `prompt`/`test` patterns were removed —
+# they silently untracked any file or directory with those names (the committed
+# tests/ directory relies on explicit entries below).
 
 # database backups / dumps (may contain user data)
 *.dump

@@ -214,12 +214,14 @@ const zarinPalProvider: PaymentProvider = {
     // 100 = verified now, 101 = already verified (idempotent duplicate).
     if (code === 100 || code === 101) {
       // Cross-check the provider-confirmed amount (Rial) against the stored
-      // server-side order amount — a mismatch is never finalized.
+      // server-side order amount — a mismatch is never finalized. The amount
+      // is MANDATORY on a success response: a "success" without a verifiable
+      // integer amount is treated as a mismatch, not silently accepted
+      // (full-remediation audit §3.4 — previously a missing data.amount
+      // skipped the check entirely).
       const paidRial = Number(data.amount);
-      if (Number.isFinite(paidRial) && paidRial > 0) {
-        if (paidRial !== amountToman * TOMAN_TO_RIAL) {
-          return { ok: false as const, reason: "amount_mismatch" as const, raw };
-        }
+      if (!Number.isSafeInteger(paidRial) || paidRial <= 0 || paidRial !== amountToman * TOMAN_TO_RIAL) {
+        return { ok: false as const, reason: "amount_mismatch" as const, raw };
       }
       return { ok: true as const, alreadyVerified: code === 101, amountToman, raw };
     }

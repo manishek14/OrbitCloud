@@ -22,6 +22,7 @@ export const adminStatsService = {
       pendingTickets,
       recentOrderRows,
       recentActivity,
+      recentTransactionRows,
     ] = await Promise.all([
       db.panelUser.count({ where: { role: "customer" } }),
       db.subscription.count({ where: { status: "active", expiresAt: { gt: now } } }),
@@ -37,6 +38,11 @@ export const adminStatsService = {
         include: { user: { select: { name: true } } },
       }),
       db.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+      db.transaction.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: { order: { select: { orderNumber: true } } },
+      }),
     ]);
 
     return {
@@ -57,6 +63,14 @@ export const adminStatsService = {
       recentOrders: recentOrderRows.map((o) => ({
         ...toOrderListEntry(o),
         customerName: o.user?.name ?? null,
+      })),
+      recentTransactions: recentTransactionRows.map((t) => ({
+        ref: t.ref,
+        orderNumber: t.order?.orderNumber ?? null,
+        gateway: t.gateway,
+        amountToman: t.amountToman,
+        status: t.status,
+        createdAt: t.createdAt.toISOString(),
       })),
       recentActivity: recentActivity.map((a) => ({
         id: a.id,

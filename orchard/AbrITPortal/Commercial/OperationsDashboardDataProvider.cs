@@ -4,6 +4,11 @@
 // canonical commerce application (Next.js + PostgreSQL) through the
 // documented server-to-server API. No fabricated numbers: when the commerce
 // service is unreachable, the dashboard shows an explicit unavailable state.
+//
+// Full-remediation audit §4.4: the provider now also surfaces the recent
+// orders, recent transactions and recent admin activity that the portal's
+// dashboard endpoint returns — previously these panels were permanently
+// empty even though the data existed.
 // ============================================================================
 
 using AbrITAdminTheme.Admin;
@@ -46,9 +51,15 @@ public sealed class OperationsDashboardDataProvider(CommerceApiClient commerce) 
             // permanently-unavailable placeholders (audit UI-8).
             SmsMetricsAvailable = false,
             DriveConfiguration = Fa(totals.ActiveDriveAccounts) + " حساب فعال",
-            RegistrationDatesAvailable = false,
-            RecentOrders = Array.Empty<DashboardOrder>(),
-            RecentCustomers = Array.Empty<DashboardCustomer>(),
+            RecentActivityAvailable = totals.RecentActivity is not null,
+            RecentOrders = totals.RecentOrders?.Select(o => new DashboardOrder(
+                o.Id, o.OrderNumber, o.Status, ViewFormats.FaToman(o.TotalToman), o.CustomerName,
+                ViewFormats.CompactDate(o.CreatedAt))).ToArray() ?? [],
+            RecentTransactions = totals.RecentTransactions?.Select(t => new DashboardTransaction(
+                t.Ref, t.OrderNumber, t.Gateway, ViewFormats.FaToman(t.AmountToman), t.Status,
+                ViewFormats.CompactDate(t.CreatedAt))).ToArray() ?? [],
+            RecentActivity = totals.RecentActivity?.Select(a => new DashboardActivity(
+                a.ActorLabel, a.Action, a.EntityType, ViewFormats.CompactDate(a.CreatedAt))).ToArray() ?? [],
         };
     }
 
@@ -69,8 +80,9 @@ public sealed class OperationsDashboardDataProvider(CommerceApiClient commerce) 
         FailedSms = reason,
         BackgroundJobs = reason,
         DriveConfiguration = reason,
-        RegistrationDatesAvailable = false,
+        RecentActivityAvailable = false,
         RecentOrders = Array.Empty<DashboardOrder>(),
-        RecentCustomers = Array.Empty<DashboardCustomer>(),
+        RecentTransactions = Array.Empty<DashboardTransaction>(),
+        RecentActivity = Array.Empty<DashboardActivity>(),
     };
 }

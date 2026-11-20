@@ -19,7 +19,19 @@
 ## Background jobs
 - `SmsOutboxBackgroundTask` (`*/1 * * * *`), `SmsLeaseRecoveryBackgroundTask` (`*/5 * * * *`) registered as Orchard `IBackgroundTask`s with in-process overlap guards. Orchard scheduling/state semantics per `INTEGRATION_CONTRACTS.md`.
 
+## Production storage decision (full-remediation audit §4.5)
+- The docker-compose stack wires `AbrIT__SmsDatabase` to the Orchard
+  PostgreSQL database, so the deployed CMS uses the durable
+  `PostgresSmsOutboxStore`. The store creates its table/indexes lazily on
+  first use (`EnsureSchemaOnceAsync`); a Production deployment that somehow
+  falls back to `InMemorySmsOutboxStore` logs a loud startup warning.
+- PRODUCTION OTP DELIVERY runs in the Next.js portal (SMS.ir + durable
+  `SmsOutbox` table in `abrit_portal`), not in the CMS. CMS-local SMS flows
+  are dev-facing; the legacy bridge refuses OTP delivery in Production and
+  SMS.ir live sends require explicit provider authorization.
+
 ## Limitations
-- In-memory stores are per-process; Postgres store provides durability/multi-instance safety when wired to tenant DB.
+- In-memory stores (only when `AbrIT:SmsDatabase` is unset) are per-process;
+  restart loses queued messages — hence the Production startup warning.
 - Exactly-once third-party delivery not claimed; idempotency keys and ambiguity handling used.
-- The PostgreSQL store and processor exist but are not registered as the active production path. Daily cap, provider rate limiting, manual retry permission, delivery confirmation, and durable OTP challenge integration remain incomplete.
+- Daily cap, provider rate limiting, manual retry permission, delivery confirmation, and durable OTP challenge integration remain incomplete.

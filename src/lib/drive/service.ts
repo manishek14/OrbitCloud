@@ -614,6 +614,8 @@ export const driveService = {
   async adminListAccounts() {
     const accounts = await db.driveAccount.findMany({
       orderBy: { provisionedAt: "desc" },
+      // Bounded operational window (audit §3.3).
+      take: 500,
       include: { panelUser: { select: { id: true, email: true, name: true } }, events: { select: { id: true } } },
     });
     return Promise.all(accounts.map(async (a) => ({
