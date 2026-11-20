@@ -24,6 +24,11 @@
 //   8. session.ipHash is derived from the same resolver
 //   9. login / OTP / recovery cannot bypass IP limits via headers (untrusted)
 //  10. per-mobile / per-email limits stay independent and active
+//
+// Final-audit-closure FSR-9 (added on top, matrix §2 of the closure task):
+//  11. x-real-ip PRESENCE is value-independent — empty/whitespace/invalid
+//      values fail closed to "unknown" and NEVER fall through to XFF; only a
+//      genuinely absent x-real-ip consults x-forwarded-for (tests FSR-9.1-9.9)
 // ============================================================================
 
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
@@ -221,6 +226,73 @@ describe("FSR-5 resolver — trusted proxy mode (ABRIT_TRUST_PROXY_HEADERS=true)
     // No valid member at all → untrusted fallback.
     expect(clientIpKey(requestWith({ "x-forwarded-for": "spoofed.invalid, also-invalid" }))).toBe(UNKNOWN_CLIENT_IP);
     expect(clientIpKey(requestWith({}))).toBe(UNKNOWN_CLIENT_IP);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Part A2 — FSR-9: presence of x-real-ip is decided by the HEADER, not the value
+//
+// Regression matrix: a present-but-empty/whitespace/invalid x-real-ip must
+// fail closed to UNKNOWN_CLIENT_IP and must NEVER fall through to
+// x-forwarded-for — only a genuinely ABSENT x-real-ip may consult XFF.
+// ---------------------------------------------------------------------------
+describe("FSR-9 — x-real-ip presence is value-independent (fail-closed, no XFF fallthrough)", () => {
+  // A valid XFF the resolver WOULD use if (and only if) x-real-ip is absent.
+  const VALID_XFF = { "x-forwarded-for": "spoofed-first, 198.51.100.10" };
+  const VALID_XFF_RIGHTMOST = "198.51.100.10";
+
+  beforeEach(() => {
+    process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
+  });
+
+  test("FSR-9.1 — x-real-ip ABSENT + valid XFF → XFF is consulted per the trusted policy", () => {
+    expect(clientIpKey(requestWith({ ...VALID_XFF }))).toBe(VALID_XFF_RIGHTMOST);
+  });
+
+  test("FSR-9.2 — x-real-ip EMPTY + valid XFF → unknown (no XFF fallthrough)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+  });
+
+  test("FSR-9.3 — x-real-ip WHITESPACE-only + valid XFF → unknown (no XFF fallthrough)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "   ", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith({ "x-real-ip": " \t ", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+  });
+
+  test("FSR-9.4 — x-real-ip INVALID literal + valid XFF → unknown (no XFF fallthrough)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "not-an-ip", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith({ "x-real-ip": "999.999.999.999", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith({ "x-real-ip": "[2001:db8::1]", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+  });
+
+  test("FSR-9.5 — valid x-real-ip IPv4 wins (returned as-is)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "203.0.113.7", ...VALID_XFF }))).toBe("203.0.113.7");
+    // Surrounding whitespace is trimmed, then the literal validates.
+    expect(clientIpKey(requestWith({ "x-real-ip": "  203.0.113.8  " }))).toBe("203.0.113.8");
+  });
+
+  test("FSR-9.6 — valid x-real-ip IPv6 wins (returned as-is)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "2001:db8::1", ...VALID_XFF }))).toBe("2001:db8::1");
+    expect(clientIpKey(requestWith({ "x-real-ip": "::1" }))).toBe("::1");
+  });
+
+  test("FSR-9.7 — x-real-ip with a PORT fails closed → unknown (no XFF fallthrough)", () => {
+    expect(clientIpKey(requestWith({ "x-real-ip": "203.0.113.7:443", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith({ "x-real-ip": "[2001:db8::1]:443", ...VALID_XFF }))).toBe(UNKNOWN_CLIENT_IP);
+  });
+
+  test("FSR-9.8 — the fail-closed value propagates to clientIpHash (durable storage keys)", () => {
+    // An empty x-real-ip must produce the SAME hash as no trustworthy IP at
+    // all — never the XFF-derived per-client hash.
+    const emptyRealIpHash = clientIpHash(requestWith({ "x-real-ip": "", ...VALID_XFF }));
+    expect(emptyRealIpHash).toBe(sha256(`ip:${UNKNOWN_CLIENT_IP}`));
+    expect(emptyRealIpHash).not.toBe(sha256(`ip:${VALID_XFF_RIGHTMOST}`));
+  });
+
+  test("FSR-9.9 — untrusted mode is unchanged: every variant above stays on the shared bucket", () => {
+    delete process.env.ABRIT_TRUST_PROXY_HEADERS;
+    expect(clientIpKey(requestWith({ "x-real-ip": "" }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith({ "x-real-ip": "203.0.113.7" }))).toBe(UNKNOWN_CLIENT_IP);
+    expect(clientIpKey(requestWith(VALID_XFF))).toBe(UNKNOWN_CLIENT_IP);
   });
 });
 

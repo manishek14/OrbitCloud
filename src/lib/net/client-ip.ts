@@ -21,15 +21,19 @@
 //
 //   TRUSTED (ABRIT_TRUST_PROXY_HEADERS=true — operator declares an
 //   edge reverse proxy that OVERWRITES, never appends, these headers):
-//     1. x-real-ip — the authoritative edge header. Accepted only as a bare
-//        valid IPv4/IPv6 literal. If the header is PRESENT but invalid, the
-//        resolver fails closed to "unknown" (a broken edge contract must not
-//        degrade into "trust whatever else the client sent").
-//     2. x-forwarded-for — fallback when the edge sets no x-real-ip. Only the
-//        RIGHTMOST member that is a bare valid IP literal is used: with
-//        appending proxies every earlier member is client-controlled, and the
-//        simple "first member" rule was exactly the spoofing bypass this
-//        module removes. If no member validates, the value is untrusted.
+//     1. x-real-ip — the authoritative edge header. Presence is checked on
+//        the HEADER ITSELF (Headers.has), never on its value: a PRESENT but
+//        empty / whitespace / non-literal value means the edge contract is
+//        broken and the resolver fails closed to "unknown" — it must NOT
+//        degrade into "trust whatever else the client sent". Accepted only
+//        as a bare valid IPv4/IPv6 literal (trimmed). No fallthrough to
+//        x-forwarded-for ever happens once x-real-ip exists (FSR-9).
+//     2. x-forwarded-for — fallback ONLY when the edge sets NO x-real-ip
+//        header at all. Only the RIGHTMOST member that is a bare valid IP
+//        literal is used: with appending proxies every earlier member is
+//        client-controlled, and the simple "first member" rule was exactly
+//        the spoofing bypass this module removes. If no member validates,
+//        the value is untrusted.
 //     3. Anything else → "unknown" (back on the safe untrusted policy).
 //
 // The raw resolved IP is never logged here (callers persist only the keyed
@@ -79,10 +83,14 @@ function rightmostValidForwardedFor(value: string): string | null {
 export function resolveClientIp(request: Request): string {
   if (!isProxyHeaderTrustEnabled()) return UNKNOWN_CLIENT_IP;
 
-  const realIp = (request.headers.get("x-real-ip") ?? "").trim();
-  if (realIp.length > 0) {
-    // Present but invalid → fail closed. Do NOT fall through to other
-    // client-influenceable headers when the authoritative one is broken.
+  // PRESENCE is a property of the header itself, not of its value (FSR-9):
+  // `has()` is true even for an empty or whitespace-only value, while a
+  // missing header is the only case that may fall through to XFF.
+  if (request.headers.has("x-real-ip")) {
+    const realIp = (request.headers.get("x-real-ip") ?? "").trim();
+    // Present but empty/whitespace/invalid → fail closed. Do NOT fall
+    // through to other client-influenceable headers when the authoritative
+    // one is broken.
     return isValidIpLiteral(realIp) ? realIp : UNKNOWN_CLIENT_IP;
   }
 

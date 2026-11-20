@@ -76,6 +76,10 @@ services:
       # and pins Host + overwrites (never appends) x-real-ip / x-forwarded-for.
       # Enables trusted-proxy behavior in the CMS proxy and the shared client-IP
       # resolver (login/OTP/recovery throttles, contact/quote limits, sessions).
+      # Resolver semantics (final-audit closure FSR-9): a PRESENT but empty or
+      # invalid x-real-ip fails closed to the shared "unknown" bucket and never
+      # falls through to x-forwarded-for — only a genuinely absent x-real-ip
+      # consults XFF (rightmost valid member).
       ABRIT_TRUST_PROXY_HEADERS: ${ABRIT_TRUST_PROXY_HEADERS:-false}
       # Public host names this deployment is reachable under (comma/space
       # separated). The ONLY way an inbound Host is promoted to the CMS's public
