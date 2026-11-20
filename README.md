@@ -20,20 +20,25 @@ AbrIT Orchard Core Client Portal — production-ready stack combining:
 | Path | Purpose |
 |---|---|
 | `src/` | Next.js portal (app router, API routes, views, libs) |
-| `orchard/` | Orchard Core solution — `AbrITPortal` host + `AbrITAdminTheme` / `AbrITPortalTheme` |
+| `orchard/` | Orchard Core solution — `AbrITPortal` host + `AbrITAdminTheme` / `AbrITPortalTheme` + test harnesses |
 | `prisma/` | Prisma schema + PostgreSQL migrations |
-| `docker/` | Compose support files (entrypoint, DB bootstrap) |
-| `Dockerfile` | Portal image (bun build → standalone Node runtime) |
-| `orchard/Dockerfile` | CMS image (.NET 10 SDK build → ASP.NET runtime) |
-| `docker-compose.yml` | Full stack: db + portal + cms |
+| `docker/` | Compose support files (entrypoint, DB bootstrap, dev override) |
+| `Dockerfile` | Portal image (bun build → standalone Node runtime, non-root) |
+| `orchard/Dockerfile` | CMS image (.NET 10 SDK build → ASP.NET runtime, non-root) |
+| `docker-compose.yml` | Full stack: db + portal + cms (requires `POSTGRES_PASSWORD`) |
+| `docker/compose.dev.yml` | Local-dev override (isolated dev DB password, CMS debug port) |
+| `.github/workflows/ci.yml` | CI: lint, types, tests, Next.js build, .NET build + harnesses, Docker builds |
 | `docs/` | Architecture, audit & fix reports, deployment guide, evidence |
 
 ## Quick start (Docker)
 
 ```bash
 cp .env.example .env
-# set at minimum: ABRIT_SERVICE_TOKEN (openssl rand -hex 24)
+# REQUIRED: POSTGRES_PASSWORD and ABRIT_SERVICE_TOKEN (openssl rand -hex 24)
 docker compose up -d --build
+
+# Local development (isolated dev DB password + CMS debug port):
+# docker compose -f docker-compose.yml -f docker/compose.dev.yml up -d --build
 ```
 
 Then:
@@ -49,6 +54,8 @@ Full guide incl. admin bootstrap, backups and the production checklist:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system architecture
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Docker deployment & operations
+- [`docs/ORBITCLOUD_COMPREHENSIVE_AUDIT_REPORT.md`](docs/ORBITCLOUD_COMPREHENSIVE_AUDIT_REPORT.md) —
+  2026-11 comprehensive security & engineering audit (this round)
 - [`docs/FIX_REPORT_2026-11-13.md`](docs/FIX_REPORT_2026-11-13.md) — critical
   fix round (auth routing, validation, payments atomicity, Orchard branded
   login, OTP policy) with browser evidence
@@ -56,11 +63,40 @@ Full guide incl. admin bootstrap, backups and the production checklist:
 - [`docs/ABRIT_DRIVE_INTEGRATION.md`](docs/ABRIT_DRIVE_INTEGRATION.md) —
   Nextcloud/AbrIT Drive integration contract
 
+## Development & testing
+
+```bash
+bun install --frozen-lockfile
+bunx prisma generate
+bun run lint          # ESLint
+bunx tsc --noEmit     # TypeScript
+bun test              # unit/integration tests (external services mocked)
+bun run build:docker  # production standalone build
+```
+
+The .NET test harnesses require the .NET 10 SDK:
+
+```bash
+dotnet build orchard/AbrITPortal.slnx -c Release
+dotnet run --project orchard/AbrITPortal.SecurityTests -c Release --no-build
+dotnet build orchard/AbrITPortal/AbrITPortal.csproj -c Debug
+dotnet run --project orchard/AbrITPortal.PricingTests -c Debug --no-build
+```
+
+All of the above run automatically in CI on every push
+(`.github/workflows/ci.yml`).
+
 ## Security notes
 
 - Real secrets live **only** in `.env` (git-ignored). `.env.example` ships
   placeholders only.
 - The service-to-service token (`ABRIT_SERVICE_TOKEN`) authenticates the
   Orchard ⇄ portal contract and must be rotated per deployment.
+- OTP and password-recovery codes are stored as **keyed HMACs**
+  (`OTP_HMAC_SECRET`) — a database leak alone cannot reveal usable codes.
+- Password-login throttling uses dedicated, indexed per-identifier and per-IP
+  counters; raw identifiers never appear in throttle storage or audit logs.
 - Payment gateways run in **sandbox** mode; production requires the
   documented merchant credentials and `ABRIT_PAYMENTS_PUBLIC_BASE_URL`.
+- Both containers run as non-root users; the CMS debug port is loopback-bound
+  by default.

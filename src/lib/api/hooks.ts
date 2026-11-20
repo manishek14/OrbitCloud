@@ -102,7 +102,7 @@ export function useLoginPassword() {
 
 export function useRequestOtp() {
   return useMutation({
-    mutationFn: (input: { mobile: string; purpose: "login" | "register" }) =>
+    mutationFn: (input: { mobile: string; purpose: "login" | "register" | "recover" }) =>
       api.post<OtpRequestResultDTO>("/api/auth/otp/request", input),
   });
 }
@@ -133,8 +133,8 @@ export function useRegister() {
 
 export function useRecoverRequest() {
   return useMutation({
-    mutationFn: (input: { email: string }) =>
-      api.post<RecoverRequestResultDTO>("/api/auth/recover/request", input),
+    mutationFn: (input: { email?: string; mobile?: string }) =>
+      api.post<RecoverRequestResultDTO | OtpRequestResultDTO>("/api/auth/recover/request", input),
   });
 }
 

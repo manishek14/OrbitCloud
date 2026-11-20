@@ -51,10 +51,23 @@ export function handleRouteError(error: unknown, scope: string): NextResponse<Ap
   return apiError(500, "INTERNAL", "خطای غیرمنتظره‌ای رخ داد؛ لطفاً بعداً تلاش کنید.");
 }
 
+/** Maximum accepted JSON request body (default 1 MiB, env-tunable). Guards
+ *  every route that reads JSON — unauthenticated endpoints included. */
+const MAX_JSON_BYTES = (() => {
+  const raw = Number(process.env.ABRIT_MAX_JSON_BODY_BYTES);
+  const value = Number.isFinite(raw) && raw > 0 ? raw : 1024 * 1024;
+  return Math.min(value, 16 * 1024 * 1024);
+})();
+
 export async function readJson<T>(request: Request): Promise<T | null> {
   try {
-    return (await request.json()) as T;
-  } catch {
+    const raw = await request.text();
+    if (raw.length > MAX_JSON_BYTES) {
+      throw new HttpError(413, "PAYLOAD_TOO_LARGE", "حجم درخواست بیش از حد مجاز است.");
+    }
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     return null;
   }
 }

@@ -1,0 +1,94 @@
+# =============================================================================
+# OrbitCloud / AbrIT CMS Cloud — CI
+#
+# Jobs:
+#   portal  : bun install → prisma generate → lint → typecheck → unit tests →
+#             production Next.js build (no live database or external
+#             credentials required — pricing is read at request time).
+#   orchard : .NET 10 build of the CMS solution + the console test harnesses
+#             (SecurityTests, PricingTests — they throw on failure).
+#   docker  : image build validation for both containers (portal + cms).
+#
+# No real external credentials are used anywhere in CI: SMS/Nextcloud/payment
+# integrations are exercised only through the mocked unit tests.
+# =============================================================================
+
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portal:
+    name: Portal (Next.js — lint, types, tests, build)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci # placeholder — no DB connection at build/test time
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: ESLint
+        run: bun run lint
+
+      - name: TypeScript type check
+        run: bunx tsc --noEmit
+
+      - name: Unit / integration tests (mocked externals)
+        run: bun test
+
+      - name: Production Next.js build (standalone)
+        run: bun run build:docker
+
+  orchard:
+    name: Orchard CMS (.NET 10 — build + test harnesses)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build CMS solution
+        run: dotnet build orchard/AbrITPortal.slnx -c Release
+
+      - name: Security test harness
+        run: dotnet run --project orchard/AbrITPortal.SecurityTests -c Release --no-build
+
+      # PricingTests references the portal's Debug output via HintPath and
+      # reads source files relative to the repository root.
+      - name: Build portal (Debug) for pricing harness
+        run: dotnet build orchard/AbrITPortal/AbrITPortal.csproj -c Debug
+
+      - name: Pricing test harness
+        run: dotnet run --project orchard/AbrITPortal.PricingTests -c Debug --no-build
+
+  docker:
+    name: Docker image build validation
+    runs-on: ubuntu-latest
+    needs: [portal, orchard]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build portal image
+        run: docker build -t abrit-portal:ci .
+
+      - name: Build CMS image
+        run: docker build -t abrit-cms:ci ./orchard

@@ -18,6 +18,7 @@ let failQuota = false;
 let failPersistence = false;
 let assignedQuota = "";
 let lastPassword = "";
+let lastPasswordEdit = "";
 
 function ncUser(email = "owner@example.test") {
   return { id: "new-user", email, displayname: "Owner", enabled: true,
@@ -26,6 +27,37 @@ function ncUser(email = "owner@example.test") {
 }
 
 const fakeDb = {
+  // The pricing catalog tables (runtime catalog source — audit fix for the
+  // pre-existing suite failures: getPlan reads the DB-backed catalog).
+  pricingPlan: {
+    findMany: async () => [
+      {
+        code: "free",
+        active: true,
+        revision: 1,
+        payload: {
+          code: "free",
+          nameFa: "رایگان",
+          nameEn: "Free",
+          monthlyPriceToman: 0,
+          includedUsers: 1,
+          includedEndpoints: 1,
+          driveQuotaBytes: 100 * 1024 * 1024,
+          extraUserFeeTomanPerMonth: 0,
+          extraEndpointFeeTomanPerMonth: 0,
+          orderable: false,
+          featured: false,
+          audienceFa: "فعال‌سازی اولیه",
+          benefitsFa: [],
+        },
+      },
+    ],
+  },
+  pricingContract: {
+    findMany: async () => [
+      { months: 1, active: true, revision: 1, payload: { months: 1, discountRate: 0, onboardingRate: 0.5, labelFa: "۱ ماهه", discountLabelFa: "", onboardingLabelFa: "" } },
+    ],
+  },
   driveAccount: {
     findFirst: async () => account,
     findUnique: async () => account,
@@ -64,7 +96,12 @@ const fakeClient = {
     remote = ncUser();
     return { userid: "new-user" };
   },
-  editUser: async (_id: string, key: string) => { if (key === "password") passwordEdits++; },
+  editUser: async (_id: string, key: string, value?: string) => {
+    if (key === "password") {
+      passwordEdits++;
+      lastPasswordEdit = value ?? "";
+    }
+  },
   setQuota: async (_id: string, quota: string) => {
     assignedQuota = quota;
     if (failQuota) throw new NextcloudError("NC_ERROR");
@@ -84,7 +121,7 @@ beforeEach(() => {
   account = null; remote = null; createCount = 0; passwordEdits = 0;
   failCreate = false; createError = null; failReservation = false; failMarkCreated = false;
   failVerification = false; wrongVerifiedQuota = false;
-  failQuota = false; failPersistence = false; assignedQuota = ""; lastPassword = "";
+  failQuota = false; failPersistence = false; assignedQuota = ""; lastPassword = ""; lastPasswordEdit = "";
 });
 
 describe("Drive activation", () => {
@@ -206,7 +243,26 @@ describe("Drive activation", () => {
     failQuota = false;
     await driveService.activate(owner, input);
     expect(createCount).toBe(1);
-    expect(passwordEdits).toBe(0);
+    // Resume applies the retry password (audit §5.1) — no second create.
+    expect(passwordEdits).toBe(1);
+  });
+
+  test("resume applies the newly chosen password to the verified remote account (audit §5.1)", async () => {
+    // First attempt: remote creation SUCCEEDS but quota assignment fails →
+    // the reservation stays provisioning_created with remote user present.
+    failQuota = true;
+    await expect(driveService.activate(owner, input)).rejects.toMatchObject({ code: "NC_ERROR" });
+    expect(account?.status).toBe("provisioning_created");
+    expect(lastPassword).toBe("Password123");
+    failQuota = false;
+    // Retry with a DIFFERENT password: ownership is verified (userid + email
+    // match), so the newly selected password must be applied remotely.
+    const overview = await driveService.activate(owner, { ...input, password: "NewUniquePassword987" });
+    expect(createCount).toBe(1); // no duplicate remote creation
+    expect(passwordEdits).toBe(1);
+    expect(lastPasswordEdit).toBe("NewUniquePassword987");
+    expect(account?.status).toBe("active");
+    expect(overview.state).toBe("ready");
   });
 
   test("verification failure remains retryable without another create", async () => {

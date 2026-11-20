@@ -413,6 +413,8 @@ export interface OtpRequestResultDTO {
   expiresInSeconds: number;
   /** Seconds before another code may be requested (UI resend countdown). */
   resendCooldownSeconds?: number;
+  /** Configured code length — the OTP input renders this many slots. */
+  codeLength?: number;
   retryAfterSeconds?: number;
 }
 

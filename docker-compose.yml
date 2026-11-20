@@ -19,8 +19,12 @@ services:
     container_name: abrit-db
     restart: unless-stopped
     environment:
+      # REQUIRED (audit §3.2): no insecure default password. Generate one with
+      # `openssl rand -hex 24` and put it in .env. For local development use
+      # docker/compose.dev.yml (see README) which pins a clearly-isolated dev
+      # password for docker compose --profile dev / override use.
       POSTGRES_USER: abrit
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abrit_dev_pw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env (see .env.example)}
       POSTGRES_DB: abrit_portal
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -52,7 +56,11 @@ services:
       # Prisma migrations (and optional seed) run before the server starts
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       SEED_ON_START: ${SEED_ON_START:-false}
-      DATABASE_URL: postgresql://abrit:${POSTGRES_PASSWORD:-abrit_dev_pw}@db:5432/abrit_portal?schema=public
+      DATABASE_URL: postgresql://abrit:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}@db:5432/abrit_portal?schema=public
+
+      # Keyed HMAC secret for OTP / recovery grant hashing (audit §3.5).
+      # Required in production; falls back to ABRIT_SERVICE_TOKEN when absent.
+      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-}
 
       # The REAL Orchard CMS lives in the cms service; every path that is not
       # a Next.js route (e.g. /admin, /Login, /TheAdmin) proxies there.
@@ -126,7 +134,7 @@ services:
       AbrIT__CommerceApi__TimeoutSeconds: "15"
 
       # Pre-fills the first-run Orchard setup screen (PostgreSQL tenant DB).
-      OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=${POSTGRES_PASSWORD:-abrit_dev_pw}
+      OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}
       OrchardCore__Default__DatabaseProvider: Postgres
 
       # Operator-only admin bootstrap (docker compose exec cms dotnet
@@ -141,9 +149,13 @@ services:
       - cms_imagesharp_cache:/var/lib/abrit-portal/imagesharp-cache
       - cms_data_protection_keys:/var/lib/abrit-portal/data-protection-keys
     ports:
-      # Direct CMS access for debugging; regular administration goes through
-      # the portal origin (https://<host>/admin). Remove in hardened deployments.
-      - "${CMS_PORT:-5001}:5000"
+      # Direct CMS access for LOCAL debugging only (audit §3.4): bound to
+      # loopback so production administration cannot bypass the public
+      # reverse proxy / portal origin. Regular administration always goes
+      # through https://<host>/admin. To expose on another interface, set an
+      # explicit CMS_BIND address in .env after reviewing the network
+      # boundary documentation in docs/DEPLOYMENT.md.
+      - "${CMS_BIND:-127.0.0.1}:${CMS_PORT:-5001}:5000"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5000/admin >/dev/null || exit 1"]
       interval: 15s

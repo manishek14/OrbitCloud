@@ -265,6 +265,12 @@ export const orderService = {
       });
       totalToman += quote.breakdown.totalToman;
     }
+    // Postgres money columns are 32-bit INT (max 2,147,483,647). Reject an
+    // oversized cart with an honest 400 instead of an insert failure/500
+    // (audit P3 — JS safe-integer guards alone do not match the column type).
+    if (!Number.isSafeInteger(totalToman) || totalToman > 2_000_000_000 || totalToman <= 0) {
+      throw new HttpError(400, "ORDER_TOTAL_TOO_LARGE", "مبلغ کل سفارش از سقف مجاز پرداخت بیشتر است؛ تعداد اقلام یا پلن‌ها را کاهش دهید یا با فروشگاه تماس بگیرید.");
+    }
 
     const order = await tx.order.create({
       data: {
@@ -318,6 +324,15 @@ export const orderService = {
     if (!Number.isSafeInteger(order.totalToman) || order.totalToman < 1000 ||
         !Number.isSafeInteger(order.totalToman * 10)) {
       throw new HttpError(400, "INVALID_AMOUNT", "مبلغ سفارش برای پرداخت معتبر نیست.");
+    }
+    // Unauthenticated-cost protection (audit P3): cap the number of pending
+    // provider transactions per order so a looping client cannot create
+    // unbounded PSP requests and pending rows.
+    const pendingCount = await db.transaction.count({
+      where: { orderId: order.id, status: "pending" },
+    });
+    if (pendingCount >= 3) {
+      throw new HttpError(429, "TOO_MANY_PENDING_PAYMENTS", "برای این سفارش چند درخواست پرداخت باز است؛ ابتدا نتیجه آن‌ها را بررسی کنید یا چند لحظه بعد تلاش کنید.");
     }
 
     const selection = selectGateway(gatewayId);
@@ -466,6 +481,38 @@ export const orderService = {
 
     // Idempotent: already finalized — just show the final state.
     if (tx.status !== "pending") {
+      // Reconciliation (audit P2): a transaction CANCELLED while the customer
+      // was mid-payment can still have captured money at the PSP. Re-verify
+      // and flag it for operator refund instead of silently ignoring it.
+      if (tx.status === "cancelled" && providerSuccessFlag !== false) {
+        const recheck = await provider.verify({ amountToman: tx.amountToman, gatewayRef });
+        if (recheck.ok) {
+          const nowIso = new Date().toISOString();
+          const marked = await db.transaction.updateMany({
+            where: { id: tx.id, status: "cancelled" },
+            data: {
+              status: "succeeded",
+              finalizedAt: new Date(nowIso),
+              rawResultJson: JSON.stringify({
+                phase: "callback-recheck",
+                paidAfterCancel: true,
+                note: "Payment captured after the order/transaction was cancelled — needs operator refund/reconciliation.",
+                gateway: provider.id,
+                at: nowIso,
+              }),
+            },
+          });
+          if (marked.count > 0) {
+            await audit({
+              actorLabel: `درگاه ${provider.id} (تأیید سمت سرور)`,
+              action: "payment.paid_after_cancel",
+              entityType: "transaction",
+              entityId: tx.ref,
+              meta: { orderNumber: tx.order.orderNumber, amountToman: tx.amountToman, needs: "refund" },
+            });
+          }
+        }
+      }
       return resultUrl(tx.ref);
     }
 
@@ -619,13 +666,31 @@ export const orderService = {
           }),
         },
       });
-      if (claimed.count === 0) return false; // already finalized elsewhere
+      if (claimed.count === 0) return "already_finalized"; // finalized elsewhere
 
       const orderClaimed = await client.order.updateMany({
         where: { id: tx.orderId, status: "pending_payment" },
         data: { status: "paid", paidAt: now },
       });
-      if (orderClaimed.count === 0) return false; // another verified attempt paid this order
+      if (orderClaimed.count === 0) {
+        // Another verified transaction already paid this order. The money
+        // captured for THIS transaction is an overpayment: mark it on the
+        // same committed row (audit P2 — no silent success without
+        // fulfillment) so operations can refund/reconcile.
+        await client.transaction.updateMany({
+          where: { id: tx.id, status: "succeeded" },
+          data: {
+            rawResultJson: JSON.stringify({
+              gateway: meta.gateway,
+              verified: true,
+              overpaid: true,
+              note: "Order already paid by another transaction — needs operator refund/reconciliation.",
+              at: now.toISOString(),
+            }),
+          },
+        });
+        return "overpaid";
+      }
       const order = await client.order.findUniqueOrThrow({ where: { id: tx.orderId } });
 
       await client.invoice.create({
@@ -642,9 +707,20 @@ export const orderService = {
       });
 
       await this.fulfill(order, client);
-      return true;
+      return "fulfilled";
     });
-    if (!fulfilled) return;
+    if (fulfilled !== "fulfilled") {
+      if (fulfilled === "overpaid") {
+        await audit({
+          actorLabel: `درگاه ${meta.gateway} (تأیید سمت سرور)`,
+          action: "payment.overpaid",
+          entityType: "transaction",
+          entityId: tx.ref,
+          meta: { orderNumber: tx.order.orderNumber, amountToman: tx.amountToman, needs: "refund" },
+        });
+      }
+      return;
+    }
 
     // ---- Post-commit, recoverable side effects ------------------------------
     const order = await db.order.findUnique({ where: { id: tx.orderId } });
@@ -883,7 +959,17 @@ export const orderService = {
     if (order.status !== "pending_payment") {
       throw new HttpError(409, "NOT_CANCELLABLE", "فقط سفارش‌های در انتظار پرداخت قابل لغو هستند.");
     }
-    await db.order.update({ where: { id: order.id }, data: { status: "cancelled", cancelledAt: new Date() } });
+    // Atomic claim (audit P1): the conditional update can never overwrite an
+    // order that a provider callback finalized between the read above and
+    // this write — the previous unconditional update could clobber a paid
+    // order to "cancelled" while its invoice stayed paid (split-brain).
+    const cancelled = await db.order.updateMany({
+      where: { id: order.id, status: "pending_payment" },
+      data: { status: "cancelled", cancelledAt: new Date() },
+    });
+    if (cancelled.count === 0) {
+      throw new HttpError(409, "NOT_CANCELLABLE", "وضعیت سفارش هم‌اکنون تغییر کرده است؛ صفحه را تازه‌سازی کنید.");
+    }
     await db.transaction.updateMany({ where: { orderId: order.id, status: "pending" }, data: { status: "cancelled", finalizedAt: new Date() } });
     await audit({ actor: user, action: "order.cancelled", entityType: "order", entityId: order.id });
   },

@@ -76,9 +76,8 @@ model SmsOutbox {
 }
 
 // Mobile OTP grants (login / registration verification / mobile recovery).
-// Same durable design as RecoveryGrant: CSPRNG 6-digit code stored as
-// SHA-256, short TTL, single-use, atomic attempt counting, per-mobile and
-// per-IP rate limits.
+// CSPRNG code stored as a KEYED HMAC (src/lib/auth/grant-hash.ts), short TTL,
+// single-use, atomic attempt counting, per-mobile and per-IP rate limits.
 model OtpGrant {
   id         String    @id @default(cuid())
   mobile     String
@@ -92,6 +91,20 @@ model OtpGrant {
 
   @@index([mobile, purpose, createdAt])
   @@index([ipHash, createdAt])
+}
+
+// Failed/successful password-login attempts — the DEDICATED rate-limit store
+// (audit §4.1). Identifiers appear ONLY as keyed hashes; counters for one
+// identifier and one client IP are evaluated independently.
+model LoginAttempt {
+  id             String   @id @default(cuid())
+  identifierHash String
+  ipHash         String
+  success        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([identifierHash, success, createdAt])
+  @@index([ipHash, success, createdAt])
 }
 
 // ---------------------------------------------------------------------------

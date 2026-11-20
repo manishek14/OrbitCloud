@@ -50,6 +50,8 @@ export default function RegisterView() {
   const [otpInvalid, setOtpInvalid] = useState(false);
   const [demoCode, setDemoCode] = useState<string | null>(null);
   const [expirySeconds, setExpirySeconds] = useState(120);
+  // Configured OTP code length (server-provided, audit §4.5).
+  const [codeLength, setCodeLength] = useState(6);
 
   const normalizedMobile = () => normalizeMobileInput(form.mobile);
 
@@ -102,6 +104,9 @@ export default function RegisterView() {
             setDemoCode(null);
           }
           setExpirySeconds(result.expiresInSeconds);
+          if (result.codeLength && result.codeLength >= 4 && result.codeLength <= 8) {
+            setCodeLength(result.codeLength);
+          }
           toast.success(result.message);
           setOtp("");
           setOtpInvalid(false);
@@ -386,6 +391,7 @@ export default function RegisterView() {
               <div>
                 <OTPInput
                   value={otp}
+                  length={codeLength}
                   invalid={otpInvalid}
                   disabled={register.isPending}
                   onChange={(value) => {

@@ -61,6 +61,12 @@ export default function VerifyOtpView() {
 
   const [otp, setOtp] = useState("");
   const [otpInvalid, setOtpInvalid] = useState(false);
+  // Code length comes from the initial navigation query and is refreshed on
+  // every resend (the server is the source of truth, audit §4.5).
+  const [codeLength, setCodeLength] = useState(() => {
+    const parsed = Number(router.query.len);
+    return Number.isFinite(parsed) && parsed >= 4 && parsed <= 8 ? Math.round(parsed) : 6;
+  });
   // Sandbox display code — read exactly once, on mount (lazy initializer).
   const [demoCode, setDemoCode] = useState<string | null>(() => readDisplayCode());
 
@@ -99,6 +105,9 @@ export default function VerifyOtpView() {
       { mobile, purpose: "login" },
       {
         onSuccess: (result) => {
+          if (result.codeLength && result.codeLength >= 4 && result.codeLength <= 8) {
+            setCodeLength(result.codeLength);
+          }
           if (result.delivery === "display" && result.code) {
             try {
               sessionStorage.setItem(
@@ -138,7 +147,7 @@ export default function VerifyOtpView() {
         <h1 className="text-xl font-extrabold md:text-2xl">تأیید ورود</h1>
         <p className="mt-2 flex flex-wrap items-center justify-center gap-1 text-xs leading-6 text-muted-foreground">
           <Smartphone className="size-3.5" />
-          کد ۶ رقمی ارسال‌شده به
+          کد {toFaDigits(codeLength)} رقمی ارسال‌شده به
           <span className="ltr-iso font-extrabold tracking-widest" dir="ltr">
             {maskMobile(mobile)}
           </span>
@@ -167,6 +176,7 @@ export default function VerifyOtpView() {
         <div>
           <OTPInput
             value={otp}
+            length={codeLength}
             invalid={otpInvalid}
             disabled={verifyOtp.isPending}
             onChange={(value) => {

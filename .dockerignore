@@ -39,3 +39,12 @@ Caddyfile
 # Docker files themselves
 Dockerfile
 .dockerignore
+
+# Audit hygiene additions: never send local artifacts to the Docker builder.
+backups
+.zscripts
+agent-ctx
+analysis
+upload
+download
+*.dump

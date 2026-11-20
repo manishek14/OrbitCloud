@@ -1,7 +1,10 @@
 "use client";
 
-// تعیین رمز عبور جدید — step 2 of the recovery flow: email + recovery code
-// (emailed/displayed in the previous step) + a new password.
+// تعیین رمز عبور جدید — step 2 of the recovery flow. Supports BOTH channels:
+//   • mobile — SMS OTP (purpose=recover) + new password (production channel)
+//   • email  — emailed/displayed recovery code + new password
+// The channel is selected by the query parameter handed over from the
+// forgot-password view (?mobile=… | ?email=…).
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -15,11 +18,16 @@ import { Button } from "@/components/ui/button";
 import { FormField, TextField } from "@/components/abrit/form-field";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_RE = /^09\d{9}$/;
 const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-const CODE_RE = /^\d{6}$/;
+const CODE_RE = /^\d{4,8}$/;
+
+function normalizeMobileInput(value: string): string {
+  return toEnDigits(value).replace(/[\s\u200c-]/g, "");
+}
 
 interface ResetFormState {
-  email: string;
+  identifier: string; // email or mobile depending on channel
   code: string;
   password: string;
   passwordConfirm: string;
@@ -30,22 +38,22 @@ type ResetFormErrors = Partial<Record<keyof ResetFormState, string>>;
 export default function ResetPasswordView() {
   const router = useRouter();
 
-  // NOTE (contract mismatch, reported to the lead): the shared useRecoverReset
-  // hook (src/lib/api/hooks.ts) does not send the `confirm` field that
-  // /api/auth/recover/reset requires, so calls through it always fail with
-  // VALIDATION. Until the hook is fixed, this view uses a local mutation via
-  // `api` (the pattern sanctioned by the hooks module header) and mirrors the
-  // password into `confirm` after client-side matching.
+  const channel: "mobile" | "email" = router.query.mobile ? "mobile" : "email";
+  const initialIdentifier =
+    channel === "mobile" ? normalizeMobileInput(router.query.mobile ?? "") : (router.query.email ?? "").trim();
+
   const recoverReset = useMutation({
-    mutationFn: (input: { email: string; code: string; newPassword: string }) =>
+    mutationFn: (input: { identifier: string; code: string; newPassword: string }) =>
       api.post<{ ok: true; message: string }>("/api/auth/recover/reset", {
-        ...input,
+        ...(channel === "mobile" ? { mobile: input.identifier } : { email: input.identifier }),
+        code: input.code,
+        newPassword: input.newPassword,
         confirm: input.newPassword,
       }),
   });
 
   const [form, setForm] = useState<ResetFormState>({
-    email: router.query.email ?? "",
+    identifier: initialIdentifier,
     code: "",
     password: "",
     passwordConfirm: "",
@@ -60,8 +68,14 @@ export default function ResetPasswordView() {
 
   const validate = (): boolean => {
     const next: ResetFormErrors = {};
-    if (!EMAIL_RE.test(form.email.trim())) next.email = "ایمیل معتبر نیست؛ مثال: you@company.ir";
-    if (!CODE_RE.test(toEnDigits(form.code).trim())) next.code = "کد بازیابی ۶ رقمی را وارد کنید.";
+    if (channel === "mobile") {
+      if (!MOBILE_RE.test(normalizeMobileInput(form.identifier))) {
+        next.identifier = "شماره همراه باید با ۰۹ شروع شود و ۱۱ رقم باشد.";
+      }
+    } else if (!EMAIL_RE.test(form.identifier.trim())) {
+      next.identifier = "ایمیل معتبر نیست؛ مثال: you@company.ir";
+    }
+    if (!CODE_RE.test(toEnDigits(form.code).trim())) next.code = "کد بازیابی را کامل وارد کنید.";
     if (!PASSWORD_RE.test(form.password)) next.password = "رمز عبور باید حداقل ۸ نویسه و شامل حرف و رقم باشد.";
     if (form.passwordConfirm !== form.password) next.passwordConfirm = "تکرار رمز عبور با رمز عبور جدید یکسان نیست.";
     setErrors(next);
@@ -72,7 +86,7 @@ export default function ResetPasswordView() {
     if (!validate()) return;
     recoverReset.mutate(
       {
-        email: form.email.trim(),
+        identifier: channel === "mobile" ? normalizeMobileInput(form.identifier) : form.identifier.trim(),
         code: toEnDigits(form.code).trim(),
         newPassword: form.password,
       },
@@ -104,7 +118,9 @@ export default function ResetPasswordView() {
         </span>
         <h1 className="mt-4 text-xl font-extrabold md:text-2xl">تعیین رمز عبور جدید</h1>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
-          کد بازیابی ارسال‌شده به ایمیل خود و رمز عبور جدید را وارد کنید.
+          {channel === "mobile"
+            ? "کد بازیابی پیامک‌شده به شماره همراه خود و رمز عبور جدید را وارد کنید."
+            : "کد بازیابی ارسال‌شده به ایمیل خود و رمز عبور جدید را وارد کنید."}
         </p>
       </div>
 
@@ -126,16 +142,21 @@ export default function ResetPasswordView() {
         </div>
       ) : (
         <div className="space-y-4">
-          <FormField label="ایمیل" htmlFor="reset-email" required error={errors.email ?? null}>
+          <FormField
+            label={channel === "mobile" ? "شماره همراه" : "ایمیل"}
+            htmlFor="reset-identifier"
+            required
+            error={errors.identifier ?? null}
+          >
             <TextField
-              id="reset-email"
-              type="email"
-              inputMode="email"
+              id="reset-identifier"
+              type={channel === "mobile" ? "tel" : "email"}
+              inputMode={channel === "mobile" ? "tel" : "email"}
               dir="ltr"
-              value={form.email}
-              invalid={Boolean(errors.email)}
-              onChange={(e) => setField("email", e.target.value)}
-              placeholder="you@company.ir"
+              value={form.identifier}
+              invalid={Boolean(errors.identifier)}
+              onChange={(e) => setField("identifier", e.target.value)}
+              placeholder={channel === "mobile" ? "09121234567" : "you@company.ir"}
             />
           </FormField>
 
@@ -144,7 +165,7 @@ export default function ResetPasswordView() {
             htmlFor="reset-code"
             required
             error={errors.code ?? null}
-            hint="کد ۶ رقمی ارسال‌شده به ایمیل شما."
+            hint={channel === "mobile" ? "کد پیامک‌شده به شماره همراه شما." : "کد ارسال‌شده به ایمیل شما."}
           >
             <TextField
               id="reset-code"
@@ -155,7 +176,7 @@ export default function ResetPasswordView() {
               invalid={Boolean(errors.code)}
               onChange={(e) => setField("code", e.target.value)}
               placeholder="------"
-              maxLength={6}
+              maxLength={8}
             />
           </FormField>
 
