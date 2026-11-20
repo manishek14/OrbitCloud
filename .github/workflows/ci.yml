@@ -78,12 +78,13 @@ jobs:
         run: dotnet run --project orchard/AbrITPortal.SecurityTests -c Release --no-build
 
       # PricingTests references the portal's Debug output via HintPath and
-      # reads source files relative to the repository root.
+      # reads source files relative to the repository root. It is NOT part of
+      # the solution, so `dotnet run` must build it here (no --no-build).
       - name: Build portal (Debug) for pricing harness
         run: dotnet build orchard/AbrITPortal/AbrITPortal.csproj -c Debug
 
       - name: Pricing test harness
-        run: dotnet run --project orchard/AbrITPortal.PricingTests -c Debug --no-build
+        run: dotnet run --project orchard/AbrITPortal.PricingTests -c Debug
 
   docker:
     name: Docker image build validation
