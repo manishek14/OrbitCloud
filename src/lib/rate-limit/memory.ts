@@ -56,33 +56,22 @@ export function resetRateLimits(): void {
   buckets.clear();
 }
 
-/**
- * Client-IP key for rate limiting (final-remediation §3).
- *
- * TOPOLOGY-VERIFIED TRUST MODEL (no speculative rewrite):
- *   * x-real-ip / x-forwarded-for are plain request headers — any client
- *     that can reach the portal directly can set them to arbitrary values
- *     and rotate the rate-limit key (bypass).
- *   * The repo's own edge gateway (Caddyfile) REPLACES both headers with
- *     {remote_host} at the edge, and the documented production topology is
- *     an operator-controlled TLS proxy in front of portal:3000 — both make
- *     the headers trustworthy.
- *   * Therefore the portal trusts these headers ONLY when the operator
- *     explicitly declares that topology with ABRIT_TRUST_PROXY_HEADERS=true
- *     (the same flag the CMS proxy uses). Without it, every caller shares a
- *     single "untrusted" bucket: no spoofed-header bypass is possible, and
- *     operators who front the portal with a sanitizing proxy simply set the
- *     flag to get real per-client keys.
- *
- * Note: the login/OTP/recovery throttles key on hashed identity identifiers
- * (email/mobile), NOT on these headers — they are unaffected either way.
- */
-export function clientIpKey(request: Request): string {
-  const trusted = (process.env.ABRIT_TRUST_PROXY_HEADERS ?? "").trim().toLowerCase() === "true";
-  if (!trusted) return "untrusted";
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
-  return "unknown";
-}
+// ----------------------------------------------------------------------------
+// Client-IP key (final-remediation §3, unified in final-integration FSR-5).
+//
+// The implementation now lives in the SHARED resolver
+// src/lib/net/client-ip.ts and is re-exported here for the existing import
+// sites (contact form, quote endpoint, tests). Trust model summary — see the
+// resolver module for the full contract:
+//   * UNTRUSTED (default, ABRIT_TRUST_PROXY_HEADERS≠true): every caller shares
+//     the single "unknown" bucket — spoofed identity headers cannot rotate
+//     the key, and rate limiting stays active (fail-closed, never disabled).
+//   * TRUSTED: x-real-ip (bare valid IP, else fail-closed), then the
+//     RIGHTMOST valid x-forwarded-for member (never the spoofable first
+//     member), else "unknown".
+//
+// Note: the login/OTP/recovery throttles key on hashed identity identifiers
+// (email/mobile) via the same shared resolver — independent limits that are
+// unaffected by IP-header spoofing.
+// ----------------------------------------------------------------------------
+export { clientIpKey } from "@/lib/net/client-ip";

@@ -6,6 +6,9 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import type { PrismaTransactionClient } from "@/lib/db";
 import type { PanelUser } from "@prisma/client";
+// FSR-5: session.ipHash comes from the SHARED client-IP resolver — this
+// module must not read x-real-ip on its own.
+import { clientIpHash } from "@/lib/net/client-ip";
 
 export const SESSION_COOKIE = "abrit_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -34,7 +37,9 @@ export async function createSessionInTx(
   const request = meta?.request;
   const rawAgent = meta?.userAgent ?? request?.headers?.get("user-agent") ?? null;
   const userAgent = rawAgent ? rawAgent.slice(0, 250) : null;
-  const ipHash = request ? createHash("sha256").update(`ip:${request.headers.get("x-real-ip") ?? "unknown"}`).digest("hex") : null;
+  // FSR-5: same shared resolver + hash format as the auth throttles
+  // (sha256("ip:" + resolved-ip)); the raw IP is never logged.
+  const ipHash = request ? clientIpHash(request) : null;
   await tx.session.create({ data: { userId, tokenHash, expiresAt, userAgent, ipHash } });
   return { token, expiresAt };
 }

@@ -66,6 +66,29 @@ services:
       # a Next.js route (e.g. /admin, /Login, /TheAdmin) proxies there.
       ORCHARD_PROXY_TARGET: http://cms:5000
 
+      # --- Operator proxy-trust contract (final-integration FSR-8) -------------
+      # A value in the project .env ALONE never reaches the container: Compose
+      # interpolation only substitutes into the service environment when the
+      # variable is explicitly listed here. All four are therefore wired
+      # explicitly, each with the documented safe default.
+      #
+      # "true" ONLY when an operator-controlled reverse proxy fronts the portal
+      # and pins Host + overwrites (never appends) x-real-ip / x-forwarded-for.
+      # Enables trusted-proxy behavior in the CMS proxy and the shared client-IP
+      # resolver (login/OTP/recovery throttles, contact/quote limits, sessions).
+      ABRIT_TRUST_PROXY_HEADERS: ${ABRIT_TRUST_PROXY_HEADERS:-false}
+      # Public host names this deployment is reachable under (comma/space
+      # separated). The ONLY way an inbound Host is promoted to the CMS's public
+      # host — in every trust mode (FSR-6). Empty → the CMS proxy reports the
+      # ORCHARD_PROXY_TARGET host.
+      ABRIT_TRUSTED_PUBLIC_HOSTS: ${ABRIT_TRUSTED_PUBLIC_HOSTS:-}
+      # Upstream timeout for proxied CMS requests, ms (default 60000, clamped
+      # 1000–600000). Timeout → controlled 504.
+      ORCHARD_PROXY_TIMEOUT_MS: ${ORCHARD_PROXY_TIMEOUT_MS:-}
+      # Maximum proxied request body in BYTES for CMS paths (default 64 MiB,
+      # clamped 1 KiB–1 GiB).
+      ABRIT_PROXY_MAX_BODY_BYTES: ${ABRIT_PROXY_MAX_BODY_BYTES:-}
+
       # Shared portal⇄CMS contract secret (REQUIRED — see .env.example)
       ABRIT_SERVICE_TOKEN: ${ABRIT_SERVICE_TOKEN:?ABRIT_SERVICE_TOKEN is required — copy .env.example to .env and set it}
 
@@ -102,7 +125,17 @@ services:
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-}
       NEXTCLOUD_ADMIN_APP_PASSWORD: ${NEXTCLOUD_ADMIN_APP_PASSWORD:-}
     ports:
-      - "${PORTAL_PORT:-3000}:3000"
+      # Network boundary (final-integration FSR-8): the documented production
+      # topology runs the TLS-terminating reverse proxy ON THE DOCKER HOST, so
+      # the portal port binds to LOOPBACK by default — public traffic can only
+      # arrive through that proxy, and direct access cannot bypass the
+      # proxy-header trust contract. Container-to-container traffic (cms →
+      # portal:3000) uses the private Docker network and is unaffected. If your
+      # reverse proxy runs INSIDE Docker (or you need LAN access), set
+      # PORTAL_BIND explicitly (e.g. 0.0.0.0) after reviewing the network
+      # boundary documentation in docs/DEPLOYMENT.md — docker/compose.dev.yml
+      # already does this for local development.
+      - "${PORTAL_BIND:-127.0.0.1}:${PORTAL_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
       interval: 15s

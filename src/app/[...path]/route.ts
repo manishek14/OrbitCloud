@@ -6,22 +6,32 @@
 //     The request path is rebuilt from the catch-all segments and every
 //     segment is percent-encoded, so no "//", "\", "%2F%2F" or Host-header
 //     trick can ever change the target origin (SSRF hardening).
-//   * HOST-HEADER TRUST (P1-2): the Host and X-Forwarded-Host sent upstream
-//     are derived ONLY from the validated proxy target or the operator's
-//     ABRIT_TRUSTED_PUBLIC_HOSTS allowlist — NEVER from the inbound request
-//     unless ABRIT_TRUST_PROXY_HEADERS=true explicitly trusts the edge
-//     proxy. A poisoned incoming Host cannot influence what the CMS sees
-//     or where redirects point.
-//   * REDIRECTS (P1-2): absolute Locations are only honored when they point
-//     at the trusted CMS origin itself (rewritten to a relative path);
-//     anything else is dropped. The incoming request origin is never used
-//     as an allowlist base for redirect decisions.
+//   * HOST-HEADER TRUST (P1-2, completed in FSR-6): the Host and
+//     X-Forwarded-Host sent upstream are derived ONLY from the validated
+//     proxy target or the operator's ABRIT_TRUSTED_PUBLIC_HOSTS allowlist.
+//     A poisoned incoming Host cannot influence what the CMS sees or where
+//     redirects point — in ANY trust mode (enabling the trusted-proxy flag
+//     alone is deliberately NOT enough; see chooseUpstreamHost).
+//   * FORWARDED-HEADER CONTRACT (FSR-6): x-forwarded-proto is always exactly
+//     http/https; x-real-ip is only forwarded as a bare valid IP literal;
+//     x-forwarded-port only as a bare numeric port; x-forwarded-for only in
+//     trusted-proxy mode (the edge contract requires the edge to REPLACE it);
+//     the RFC 7239 `Forwarded` header is never forwarded in any mode.
+//   * REDIRECTS (P1-2, hardened in FSR-6): absolute Locations are only honored
+//     when they point at the trusted CMS origin set (target origin + allowlisted
+//     public hosts) and are rewritten to a RELATIVE path that can never
+//     re-serialize as a network-path reference — "//evil.test",
+//     "\\evil.test", "/\evil.test" and "http://cms//evil.test" all reduce to
+//     a safe internal "/". The incoming request origin is never used as an
+//     allowlist base for redirect decisions.
 //   * Only standard web methods are forwarded; everything else is a 405.
 //   * Portal-internal headers (x-abrit-service-token, authorization, the
 //     abrit_session cookie) are never forwarded to the CMS.
 //   * The request body is streamed with a byte cap; the upstream call has a
 //     timeout; the CMS-down path returns a branded, controlled response.
 export const dynamic = "force-dynamic";
+
+import { isIP } from "node:net";
 
 // Methods the CMS behind this proxy may serve. Anything else (OPTIONS,
 // CONNECT, TRACE, …) is refused before any upstream connection is made.
@@ -199,26 +209,27 @@ function configuredPublicHosts(): string[] {
 
 /**
  * Resolves the Host / X-Forwarded-Host values the proxy reports upstream
- * (P1-2). Never returns a client-controlled value unless the operator has
- * explicitly trusted the proxy layer or allowlisted the host.
+ * (P1-2, tightened in FSR-6).
+ *
+ * The ONLY way an inbound Host is promoted to the public host is the explicit
+ * ABRIT_TRUSTED_PUBLIC_HOSTS allowlist — in EVERY mode. Enabling
+ * ABRIT_TRUST_PROXY_HEADERS=true alone is deliberately NOT enough: a client
+ * that reaches the portal directly (bypassing the edge proxy) must not be
+ * able to poison the CMS's idea of the public origin. Without an allowlist
+ * the proxy reports the deployment-configured target host.
  */
 function chooseUpstreamHost(incomingHost: string | null, target: URL): { host: string; xfh: string } {
   const inbound = (incomingHost ?? "").trim().toLowerCase();
 
-  // 1. Explicit operator allowlist: only allowlisted hosts are forwarded.
+  // Explicit operator allowlist: only allowlisted hosts are forwarded.
   const allow = configuredPublicHosts();
   if (allow.length > 0) {
     if (inbound && allow.includes(inbound)) return { host: inbound, xfh: inbound };
     return { host: allow[0], xfh: allow[0] };
   }
 
-  // 2. Operator explicitly trusts the edge proxy to pin the public Host.
-  if (isOperatorTrustedProxy()) {
-    const host = inbound || target.host;
-    return { host, xfh: host };
-  }
-
-  // 3. Default (untrusted): forward the deployment-configured target host.
+  // No allowlist (untrusted AND trusted mode alike): forward the
+  // deployment-configured target host — never a client-controlled value.
   return { host: target.host, xfh: target.host };
 }
 
@@ -241,6 +252,70 @@ function buildUpstreamUrl(target: URL, segments: string[], search: string): URL 
   upstream.pathname = path;
   upstream.search = search;
   return upstream;
+}
+
+/**
+ * Redirect destinations the proxy considers TRUSTED (FSR-6): the configured
+ * CMS origin itself plus the operator's allowlisted public hosts (the CMS
+ * legitimately generates absolute URLs under the public host it was told
+ * about via Host / X-Forwarded-Host). Both http and https forms of an
+ * allowlisted host are trusted — the portal cannot know which scheme the
+ * public edge terminates, and neither form can point outside the deployment.
+ */
+function trustedRedirectOrigins(target: URL): Set<string> {
+  const origins = new Set([target.origin]);
+  for (const host of configuredPublicHosts()) {
+    origins.add(`http://${host}`);
+    origins.add(`https://${host}`);
+  }
+  return origins;
+}
+
+/**
+ * Reduces an upstream Location header to a SAFE RELATIVE reference (FSR-6).
+ *
+ * Rules:
+ *   1. A raw Location that is already a safe relative reference (exactly one
+ *      leading "/" — never "//" or "/\", no backslash anywhere, no control
+ *      characters) is preserved untouched; the browser stays on the origin
+ *      it already used.
+ *   2. Everything else is parsed against the PINNED target origin. WHATWG
+ *      parsing normalizes backslashes to slashes for special schemes, so
+ *      "\\evil.test", "\evil.test" and "/\evil.test" all resolve to
+ *      http://evil.test/… and fail the trusted-origin check below. Encoded
+ *      slashes/backslashes stay percent-encoded path characters — they can
+ *      never reintroduce an authority.
+ *   3. Only trusted origins (trustedRedirectOrigins) survive, rewritten to
+ *      `pathname + search + hash` — and only when that value cannot
+ *      re-serialize as a network-path reference: it must not start with
+ *      "//" and must not contain a backslash. Without this, a CMS Location
+ *      like "http://cms:5000//evil.test/x" would come back out as
+ *      "//evil.test/x" — a scheme-relative redirect to the attacker.
+ *   4. Anything unparseable, untrusted or ambiguous is reduced to "/" — a
+ *      safe internal destination, never an open redirect.
+ */
+function sanitizeUpstreamLocation(location: string, target: URL): { value: string; dropped: boolean } {
+  const raw = location.trim();
+  // Rule 1 — already a safe relative reference.
+  if (/^\/(?!\/|\\)/.test(raw) && !raw.includes("\\") && !/[\r\n\t]/.test(raw)) {
+    return { value: raw, dropped: false };
+  }
+  // Rule 2 — parse against the pinned target origin.
+  let parsed: URL;
+  try {
+    parsed = new URL(raw, target);
+  } catch {
+    return { value: "/", dropped: true };
+  }
+  // Rule 3 — trusted origins only, never a network-path result.
+  if (!trustedRedirectOrigins(target).has(parsed.origin)) {
+    return { value: "/", dropped: true };
+  }
+  const relative = parsed.pathname + parsed.search + parsed.hash;
+  if (relative.startsWith("//") || relative.includes("\\")) {
+    return { value: "/", dropped: true };
+  }
+  return { value: relative, dropped: false };
 }
 
 async function proxy(request: Request, context: { params: Promise<{ path?: string[] }> }): Promise<Response> {
@@ -274,25 +349,48 @@ async function proxy(request: Request, context: { params: Promise<{ path?: strin
   headers.delete("x-abrit-service-token");
   headers.delete("authorization");
   stripPortalSessionCookie(headers);
-  // P1-2: the upstream Host / X-Forwarded-Host are derived from trusted
-  // configuration only — the inbound (possibly spoofed) Host is used solely
-  // when the operator allowlisted it or explicitly trusted the edge proxy.
-  // A spoofed incoming Host can never change what the CMS believes its
-  // public origin is.
+  // P1-2 + FSR-6: the upstream Host / X-Forwarded-Host are derived from
+  // trusted configuration only — the inbound (possibly spoofed) Host is used
+  // solely when the operator allowlisted it. A spoofed incoming Host can
+  // never change what the CMS believes its public origin is, in ANY mode.
   const trustedProxy = isOperatorTrustedProxy();
   const upstreamHost = chooseUpstreamHost(request.headers.get("host"), target);
   headers.set("host", upstreamHost.host);
   headers.set("x-forwarded-host", upstreamHost.xfh);
-  // The whole forwarded-header family is client-settable; an untrusted
-  // deployment never passes client values through to the CMS.
+
+  // FSR-6 — complete forwarded-header contract. Every header below is plain
+  // client-settable input; the policy is explicit per mode (see the file
+  // header). Nothing is ever passed through blindly, not even in
+  // trusted-proxy mode:
+  //   • x-forwarded-proto: always exactly "http" or "https" — the edge value
+  //     when it validates, otherwise the pinned target scheme.
+  //   • Forwarded (RFC 7239): always stripped — the documented edge contract
+  //     uses the X-Forwarded-* family exclusively.
+  //   • untrusted mode: x-forwarded-for / x-real-ip / x-forwarded-port are
+  //     stripped (client-controlled values never reach the CMS).
+  //   • trusted mode: x-forwarded-for passes on (the edge contract requires
+  //     the edge to REPLACE it); x-real-ip only as a bare valid IP literal;
+  //     x-forwarded-port only as a bare numeric port (1..65535).
+  const edgeProto = (request.headers.get("x-forwarded-proto") ?? "").trim().toLowerCase();
+  if (trustedProxy && (edgeProto === "http" || edgeProto === "https")) {
+    headers.set("x-forwarded-proto", edgeProto);
+  } else {
+    headers.set("x-forwarded-proto", target.protocol.slice(0, -1));
+  }
+  headers.delete("forwarded");
   if (!trustedProxy) {
-    headers.delete("x-forwarded-proto");
     headers.delete("x-forwarded-for");
     headers.delete("x-real-ip");
-    headers.delete("forwarded");
-    headers.set("x-forwarded-proto", target.protocol.slice(0, -1));
-  } else if (!headers.has("x-forwarded-proto")) {
-    headers.set("x-forwarded-proto", incoming.protocol.slice(0, -1));
+    headers.delete("x-forwarded-port");
+  } else {
+    const edgeRealIp = (request.headers.get("x-real-ip") ?? "").trim();
+    if (!(edgeRealIp.length > 0 && isIP(edgeRealIp) !== 0)) {
+      headers.delete("x-real-ip");
+    }
+    const edgePort = (request.headers.get("x-forwarded-port") ?? "").trim();
+    if (!/^\d{1,5}$/.test(edgePort) || Number(edgePort) < 1 || Number(edgePort) > 65535) {
+      headers.delete("x-forwarded-port");
+    }
   }
 
   const acceptsHtml = (request.headers.get("accept") ?? "").includes("text/html");
@@ -323,23 +421,14 @@ async function proxy(request: Request, context: { params: Promise<{ path?: strin
     for (const cookie of upstream.headers.getSetCookie()) responseHeaders.append("set-cookie", cookie);
     const location = responseHeaders.get("location");
     if (location) {
-      try {
-        const redirect = new URL(location, target);
-        // P1-2: redirects are only honored when they point at the TRUSTED CMS
-        // origin (rewritten to a relative, host-independent path). Everything
-        // else is dropped — the decision never involves the incoming request
-        // origin, so a spoofed Host cannot smuggle an open redirect past the
-        // old `redirect.origin !== incoming.origin` passthrough.
-        if (redirect.origin === target.origin) {
-          responseHeaders.set("location", redirect.pathname + redirect.search + redirect.hash);
-        } else {
-          // Absolute redirects to ANY other origin are dropped — the CMS never
-          // legitimately bounces users to third parties, and forwarded Host
-          // headers must not be able to forge such a redirect (open redirect).
-          console.warn("[cms-proxy] dropped cross-origin redirect Location:", location);
-          responseHeaders.set("location", "/");
-        }
-      } catch { /* Preserve an already relative Location. */ }
+      // FSR-6: redirects may ONLY target the trusted CMS origin set, and the
+      // value handed to the browser can never degrade into a network-path
+      // reference. See sanitizeUpstreamLocation for the full rule set.
+      const sanitized = sanitizeUpstreamLocation(location, target);
+      if (sanitized.dropped) {
+        console.warn("[cms-proxy] dropped unsafe redirect Location:", location);
+      }
+      responseHeaders.set("location", sanitized.value);
     }
     return new Response(request.method === "HEAD" ? null : upstream.body, {
       status: upstream.status,

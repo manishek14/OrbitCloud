@@ -45,13 +45,13 @@ afterEach(() => {
 
 describe("§3 — default (untrusted): spoofed identity headers cannot bypass limits", () => {
   test("x-real-ip spoofing is ignored — all requests share the untrusted bucket", () => {
-    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "1.1.1.1" }))).toBe("untrusted");
-    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "2.2.2.2" }))).toBe("untrusted");
+    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "1.1.1.1" }))).toBe("unknown");
+    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "2.2.2.2" }))).toBe("unknown");
   });
 
   test("x-forwarded-for spoofing is ignored the same way", () => {
-    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "8.8.8.8, 9.9.9.9" }))).toBe("untrusted");
-    expect(clientIpKey(requestWithHeaders({}))).toBe("untrusted");
+    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "8.8.8.8, 9.9.9.9" }))).toBe("unknown");
+    expect(clientIpKey(requestWithHeaders({}))).toBe("unknown");
   });
 
   test("rotating fake IPs does NOT reset the contact allowance (simulated attack)", () => {
@@ -82,7 +82,8 @@ describe("§3 — default (untrusted): spoofed identity headers cannot bypass li
     // proving they share the key rather than each getting a fresh one.
     expect(blocked).toBe(0);
     // The 5th hit (limit reached) is still allowed; the 6th is blocked —
-    // all from the ONE shared "untrusted" bucket.
+    // all from the ONE shared bucket ("unknown" — the FSR-5 shared-resolver
+    // constant, same value the auth ipHash fallback has always used).
     const key = `contact:${clientIpKey(requestWithHeaders({ "x-real-ip": "z" }))}`;
     expect(consumeRateLimit(key, CONTACT_LIMIT, CONTACT_WINDOW_MS).allowed).toBe(true); // 5th
     expect(consumeRateLimit(key, CONTACT_LIMIT, CONTACT_WINDOW_MS).allowed).toBe(false); // 6th
@@ -96,10 +97,17 @@ describe("§3 — trusted-proxy mode (ABRIT_TRUST_PROXY_HEADERS=true): per-clien
     expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.8" }))).toBe("203.0.113.8");
   });
 
-  test("x-forwarded-for is the fallback when the edge sets no x-real-ip", () => {
+  test("x-forwarded-for is the fallback when the edge sets no x-real-ip (FSR-5: RIGHTMOST valid member)", () => {
     process.env.ABRIT_TRUST_PROXY_HEADERS = "true";
-    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" }))).toBe("203.0.113.9");
+    // FSR-5 policy change, asserted here on purpose: the FIRST XFF member is
+    // client-controlled under appending proxies (it was exactly the spoofing
+    // bypass this suite was written against), so the shared resolver now
+    // takes the RIGHTMOST valid member — the one our own trusted edge wrote.
+    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" }))).toBe("10.0.0.1");
+    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "203.0.113.9, garbage, 10.0.0.2" }))).toBe("10.0.0.2");
     expect(clientIpKey(requestWithHeaders({}))).toBe("unknown");
+    // No valid member at all → back on the safe untrusted policy.
+    expect(clientIpKey(requestWithHeaders({ "x-forwarded-for": "spoofed.invalid" }))).toBe("unknown");
   });
 
   test("distinct clients keep independent allowances; one abusive client is still capped", () => {
@@ -119,9 +127,9 @@ describe("§3 — trusted-proxy mode (ABRIT_TRUST_PROXY_HEADERS=true): per-clien
 
   test("flag parsing is strict: anything but (whitespace-padded, any-case) \"true\" is untrusted", () => {
     process.env.ABRIT_TRUST_PROXY_HEADERS = "yes";
-    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("untrusted");
+    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("unknown");
     process.env.ABRIT_TRUST_PROXY_HEADERS = "1";
-    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("untrusted");
+    expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("unknown");
     process.env.ABRIT_TRUST_PROXY_HEADERS = "true ";
     expect(clientIpKey(requestWithHeaders({ "x-real-ip": "203.0.113.7" }))).toBe("203.0.113.7");
     process.env.ABRIT_TRUST_PROXY_HEADERS = "TRUE";

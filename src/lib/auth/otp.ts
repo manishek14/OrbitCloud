@@ -36,7 +36,8 @@
 import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/api/http";
-import { clientIpHash } from "@/lib/auth/recovery";
+// FSR-5: shared client-IP resolver (same module the rate limiter uses).
+import { clientIpHash } from "@/lib/net/client-ip";
 import { sendVerifyOtp, getSmsIrConfig } from "@/lib/sms/smsir";
 import { MOBILE_PATTERN, normalizeIdentifierDigits } from "@/lib/auth/identifier";
 import { hashGrantCode, verifyGrantCode } from "@/lib/auth/grant-hash";

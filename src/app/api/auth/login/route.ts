@@ -22,7 +22,8 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/session";
 import { parseIdentifier } from "@/lib/auth/identifier";
-import { clientIpHash } from "@/lib/auth/recovery";
+// FSR-5: shared client-IP resolver (same module the rate limiter uses).
+import { clientIpHash } from "@/lib/net/client-ip";
 import { apiError, handleRouteError, readJson } from "@/lib/api/http";
 import { audit } from "@/lib/audit";
 import { toPublicUser } from "@/lib/api/serialize";
