@@ -21,12 +21,6 @@ const fakeDb = {
       return data;
     },
   },
-  auditLog: {
-    create: async ({ data }: { data: { actorLabel: string; action: string; metaJson: string | null } }) => {
-      auditRows.push(data);
-      return data;
-    },
-  },
   panelUser: {
     findFirst: async () => null, // unknown identifier → constant-shape 401
     update: async () => ({}),
@@ -34,7 +28,22 @@ const fakeDb = {
   session: { create: async () => ({}) },
 };
 
+// Mock BOTH modules the route depends on. Mocking @/lib/audit DIRECTLY (not
+// just @/lib/db) makes this file immune to cross-file mock leakage: another
+// test file in the same bun worker may have installed its own global
+// @/lib/audit mock (e.g. payment-callback-service's no-op) before this file
+// runs — capturing audit calls here is also the more precise contract: the
+// route must never pass raw identifiers to the audit trail.
 mock.module("@/lib/db", () => ({ db: fakeDb }));
+mock.module("@/lib/audit", () => ({
+  audit: async (input: { actorLabel?: string; action: string; meta?: Record<string, unknown> }) => {
+    auditRows.push({
+      actorLabel: input.actorLabel ?? "",
+      action: input.action,
+      metaJson: input.meta ? JSON.stringify(input.meta) : null,
+    });
+  },
+}));
 const { POST } = await import("../src/app/api/auth/login/route");
 
 beforeEach(() => {
@@ -96,8 +105,14 @@ describe("login throttling (audit §4.1)", () => {
   test("raw identifiers never appear in throttle records or audit labels", async () => {
     identifierFailures = 0;
     ipFailures = 0;
-    await POST(loginRequest("user@example.test"));
-    await POST(loginRequest("09121234567"));
+    const first = await POST(loginRequest("user@example.test"));
+    const second = await POST(loginRequest("09121234567"));
+    // Both requests must take the constant-shape 401 path (guard against a
+    // silent 400/500 that would trivially pass the PII assertions below).
+    expect(first.status).toBe(401);
+    expect(second.status).toBe(401);
+    expect(attemptRecords).toHaveLength(2);
+    expect(auditRows).toHaveLength(2);
     const raw = JSON.stringify(attemptRecords) + JSON.stringify(auditRows);
     expect(raw).not.toContain("user@example.test");
     expect(raw).not.toContain("09121234567");

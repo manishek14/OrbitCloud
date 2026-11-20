@@ -37,22 +37,22 @@ function readSecret(envName: string): string | null {
 }
 
 /**
- * The HMAC key for grant codes. Resolution order:
- *   1. OTP_HMAC_SECRET (dedicated secret)
- *   2. ABRIT_SERVICE_TOKEN (only as a bootstrap fallback — it is already a
- *      required production secret, so operators get safe hashing without a
- *      NEW mandatory variable; a dedicated secret is still recommended)
- *   3. development-only deterministic key (never in production)
+ * The HMAC key for grant codes. Resolution order (engineering review follow-up:
+ * the dedicated secret is MANDATORY in production — no implicit fallback):
+ *   1. OTP_HMAC_SECRET (dedicated secret — required when NODE_ENV=production)
+ *   2. development-only deterministic key (never in production)
+ *
+ * Production refuses to start grant-issuing flows without OTP_HMAC_SECRET,
+ * even when ABRIT_SERVICE_TOKEN is configured: reusing the service contract
+ * token as the HMAC key silently couples two independent security domains.
  */
 function currentSecret(): string {
   const dedicated = readSecret("OTP_HMAC_SECRET");
   if (dedicated) return dedicated;
-  const serviceToken = readSecret("ABRIT_SERVICE_TOKEN");
-  if (serviceToken && serviceToken.length >= 16) return serviceToken;
   if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "OTP grant hashing is not configured: set OTP_HMAC_SECRET (>= 32 random chars, e.g. `openssl rand -hex 32`) " +
-        "to a dedicated server-side secret. Production refuses to fall back to an implicit key.",
+      "OTP grant hashing is not configured: set OTP_HMAC_SECRET (>= 32 random chars, e.g. `openssl rand -hex 32`). " +
+        "Production requires the dedicated secret (the ABRIT_SERVICE_TOKEN fallback was removed by engineering review).",
     );
   }
   if (!devWarningIssued) {

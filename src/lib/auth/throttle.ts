@@ -19,9 +19,9 @@ const DEV_FALLBACK_SECRET = "abrit-dev-only-throttle-hmac-key";
 function throttleSecret(): string {
   const dedicated = (process.env.OTP_HMAC_SECRET ?? "").trim();
   if (dedicated) return dedicated;
-  const serviceToken = (process.env.ABRIT_SERVICE_TOKEN ?? "").trim();
-  if (serviceToken.length >= 16) return serviceToken;
   if (process.env.NODE_ENV === "production") {
+    // Engineering review: the dedicated secret is MANDATORY in production —
+    // no ABRIT_SERVICE_TOKEN fallback (independent security domains).
     throw new Error(
       "Login throttling is not configured: set OTP_HMAC_SECRET (>= 32 random chars) to a dedicated server-side secret.",
     );

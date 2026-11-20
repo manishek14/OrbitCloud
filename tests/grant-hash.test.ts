@@ -75,11 +75,17 @@ describe("grant hashing (audit §3.5)", () => {
     expect(() => hashGrantCode("123456", "login")).toThrow(/OTP_HMAC_SECRET/);
   });
 
-  test("production falls back to the service token when no dedicated secret is set", () => {
+  test("production REQUIRES the dedicated secret — the service-token fallback was removed (engineering review)", () => {
     process.env.NODE_ENV = "production";
     delete process.env.OTP_HMAC_SECRET;
     process.env.ABRIT_SERVICE_TOKEN = "a-service-token-of-sufficient-length";
-    expect(isGrantSecretConfigured()).toBe(true);
+    expect(isGrantSecretConfigured()).toBe(false);
+    expect(() => hashGrantCode("123456", "login")).toThrow(/OTP_HMAC_SECRET/);
+  });
+
+  test("production with the dedicated secret works", () => {
+    process.env.NODE_ENV = "production";
+    process.env.OTP_HMAC_SECRET = "a-dedicated-production-secret";
     const stored = hashGrantCode("123456", "login");
     expect(verifyGrantCode(stored, "123456", "login")).toBe(true);
   });

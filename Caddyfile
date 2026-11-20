@@ -1,50 +1,47 @@
 # =============================================================================
 # Development / sandbox preview gateway.
 #
-# SECURITY (audit §3.1): the previous configuration proxied to
-# localhost:{query.XTransformPort} — an ARBITRARY user-controlled upstream
-# port. Any visitor could reach every service bound to any local port through
-# this gateway. This configuration fixes both problems:
+# SECURITY (audit §3.1 + engineering review): the previous configuration proxied
+# to localhost:{query.XTransformPort} — an ARBITRARY user-controlled upstream
+# port. The first hardening pass allowlisted the whole 3000-3999 range; the
+# engineering review tightened it further to an EXPLICIT per-service mapping.
+# Every upstream is now enumerated: adding a preview service means adding one
+# explicit map entry. Everything else routes to the discard sink 127.0.0.1:9.
 #
-#   1. LISTENER: 127.0.0.1 only. The dynamic preview feature is a
-#      development/sandbox concern; it must never be exposed publicly. Public
-#      traffic belongs to the real production reverse proxy (Caddy/Traefik/
-#      nginx in front of the portal container), never to this file.
-#
-#   2. ALLOWLIST: XTransformPort is mapped through an explicit map. Only the
-#      registered local service range 3000-3999 (Next.js portal + bun
-#      mini-services such as the Nextcloud emulator on 3031) may be reached;
-#      every other value is routed to the discard sink 127.0.0.1:9, which
-#      refuses the connection.
+#   LISTENER: 127.0.0.1 only — the dynamic preview feature is a development/
+#   sandbox concern and must never be exposed publicly. Public traffic belongs
+#   to the real production reverse proxy in front of the portal container.
 # =============================================================================
 
 127.0.0.1:81 {
-	# Explicit allowlist of locally registered preview services. The pattern
-	# below deliberately matches ONLY 4-digit ports in the 3000-3999 range.
-	map {query.XTransformPort} {upstream} {
-		~^3[0-9]{3}$ localhost:{query.XTransformPort}
-		default 127.0.0.1:9
-	}
+        # EXPLICIT service allowlist (engineering review: no wildcard port ranges).
+        #   3000 — Next.js portal (bun dev server)
+        #   3031 — Nextcloud emulator mini-service (mini-services/nextcloud-mock)
+        map {query.XTransformPort} {upstream} {
+                3000 localhost:3000
+                3031 localhost:3031
+                default 127.0.0.1:9
+        }
 
-	@transform_port_query {
-		query XTransformPort=*
-	}
+        @transform_port_query {
+                query XTransformPort=*
+        }
 
-	handle @transform_port_query {
-		reverse_proxy {upstream} {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+        handle @transform_port_query {
+                reverse_proxy {upstream} {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 
-	handle {
-		reverse_proxy localhost:3000 {
-			header_up Host {host}
-			header_up X-Forwarded-For {remote_host}
-			header_up X-Forwarded-Proto {scheme}
-			header_up X-Real-IP {remote_host}
-		}
-	}
+        handle {
+                reverse_proxy localhost:3000 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 }

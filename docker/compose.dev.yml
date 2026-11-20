@@ -17,6 +17,9 @@ services:
   portal:
     environment:
       DATABASE_URL: postgresql://abrit:abrit_dev_pw@db:5432/abrit_portal?schema=public
+      # Isolated dev value for the mandatory grant-hashing secret (production
+      # must generate its own: openssl rand -hex 32).
+      OTP_HMAC_SECRET: abrit_dev_only_grant_hmac_key
   cms:
     environment:
       OrchardCore__Default__ConnectionString: Host=db;Port=5432;Database=abrit_orchard;Username=abrit;Password=abrit_dev_pw

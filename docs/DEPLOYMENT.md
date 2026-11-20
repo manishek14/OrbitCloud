@@ -33,7 +33,7 @@ Mandatory values in `.env`:
 |---|---|
 | `ABRIT_SERVICE_TOKEN` | Shared secret of the Orchard ⇄ portal contract. Generate: `openssl rand -hex 24`. Same value is wired into both containers automatically. |
 | `POSTGRES_PASSWORD` | **Required — compose refuses to start without it** (there is deliberately no insecure default). Generate: `openssl rand -hex 24`. Local development: use `docker/compose.dev.yml` (below) which pins a clearly-isolated dev password. |
-| `OTP_HMAC_SECRET` | Dedicated HMAC secret for OTP / recovery-code hashing (audit §3.5). Generate: `openssl rand -hex 32`. When unset, the already-mandatory `ABRIT_SERVICE_TOKEN` is used as a bootstrap fallback; a dedicated secret is still recommended. Rotation: move the old value to `OTP_HMAC_SECRET_PREVIOUS`. |
+| `OTP_HMAC_SECRET` | **Required in production** — dedicated HMAC secret for OTP / recovery-code hashing (audit §3.5). Generate: `openssl rand -hex 32`. No implicit fallback exists (the former ABRIT_SERVICE_TOKEN fallback was removed by engineering review). Rotation: move the old value to `OTP_HMAC_SECRET_PREVIOUS`. |
 | `SMSIR_API_KEY`, `SMSIR_TEMPLATE_ID` | Real SMS.ir Verify credentials. Without them keep `OTP_DELIVERY_MODE=display` — **isolated development only**, production must be `sms`. |
 | `ABRIT_PAYMENTS_PUBLIC_BASE_URL` | **Required in production.** The public HTTPS origin used to build gateway callback URLs (never derived from Host headers). |
 | `NEXTCLOUD_MODE=live` + `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_APP_PASSWORD` | AbrIT Drive production integration. `simulation` deliberately refuses to run when `NODE_ENV=production`. `NEXTCLOUD_ALLOW_INSECURE` is ignored in production (HTTPS only). |
@@ -171,8 +171,8 @@ docker run --rm --volumes-from abrit-cms -v "$PWD":/backup alpine \
 - [ ] `NEXTCLOUD_MODE=live` with real Drive admin app-password (HTTPS base URL;
       `NEXTCLOUD_ALLOW_INSECURE` is ignored in production).
 - [ ] `POSTGRES_PASSWORD` set to a strong generated value (no default exists).
-- [ ] `OTP_HMAC_SECRET` set to a strong generated value (or accept the
-      documented `ABRIT_SERVICE_TOKEN` fallback).
+- [ ] `OTP_HMAC_SECRET` set to a strong generated value — **mandatory**;
+      production refuses to issue OTP/recovery codes without it.
 - [ ] `ABRIT_SERVICE_TOKEN` regenerated (`openssl rand -hex 24`).
 - [ ] `CMS_BIND` left at the `127.0.0.1` default — administration belongs
       behind the portal origin; never expose the debug port publicly.

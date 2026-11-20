@@ -59,8 +59,8 @@ services:
       DATABASE_URL: postgresql://abrit:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env}@db:5432/abrit_portal?schema=public
 
       # Keyed HMAC secret for OTP / recovery grant hashing (audit §3.5).
-      # Required in production; falls back to ABRIT_SERVICE_TOKEN when absent.
-      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-}
+      # REQUIRED in production — no implicit fallback (engineering review).
+      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:?OTP_HMAC_SECRET is required — set a dedicated secret in .env (openssl rand -hex 32)}
 
       # The REAL Orchard CMS lives in the cms service; every path that is not
       # a Next.js route (e.g. /admin, /Login, /TheAdmin) proxies there.
