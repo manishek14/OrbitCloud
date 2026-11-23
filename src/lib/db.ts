@@ -13,9 +13,13 @@ const log: ('query' | 'warn' | 'error')[] =
     ? ['query', 'warn', 'error']
     : ['warn', 'error']
 
+const databaseUrl =
+  process.env.DATABASE_URL ?? process.env.DATABASE_URL_POSTGRES_PRISMA_URL
+
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
+    ...(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : {}),
     log,
   })
 
