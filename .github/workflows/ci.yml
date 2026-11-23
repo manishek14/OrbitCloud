@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci # placeholder — no DB connection at build/test time
+      DIRECT_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci # placeholder for schema directUrl
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4

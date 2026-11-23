@@ -9,8 +9,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Direct (non-pooled) connection used ONLY by Prisma Migrate.
+  // On Neon (Vercel integration) set DIRECT_DATABASE_URL to the
+  // non-pooled connection string — migrations must bypass PgBouncer.
+  // Locally and in CI, keep both values identical.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------
