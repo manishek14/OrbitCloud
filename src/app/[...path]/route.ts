@@ -4,7 +4,7 @@
 // SECURITY (full-remediation audit §2.1 + final-remediation P1-2):
 //   * The upstream ORIGIN is pinned to the configured ORCHARD_PROXY_TARGET.
 //     The request path is rebuilt from the catch-all segments and every
-//     segment is percent-encoded, so no "//", "\", "%2F%2F" or Host-header
+//     segment is percent-encoded, so no "//", "\\", "%2F%2F" or Host-header
 //     trick can ever change the target origin (SSRF hardening).
 //   * HOST-HEADER TRUST (P1-2, completed in FSR-6): the Host and
 //     X-Forwarded-Host sent upstream are derived ONLY from the validated
@@ -21,7 +21,7 @@
 //     when they point at the trusted CMS origin set (target origin + allowlisted
 //     public hosts) and are rewritten to a RELATIVE path that can never
 //     re-serialize as a network-path reference — "//evil.test",
-//     "\\evil.test", "/\evil.test" and "http://cms//evil.test" all reduce to
+//     "\\\\evil.test", "/\\evil.test" and "http://cms//evil.test" all reduce to
 //     a safe internal "/". The incoming request origin is never used as an
 //     allowlist base for redirect decisions.
 //   * Only standard web methods are forwarded; everything else is a 405.
@@ -113,7 +113,7 @@ function cmsUnavailableHtml(code: string, heading: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>سرویس مدیریت در دسترس نیست — AbrIT</title>
+<title>سرویس مدیریت در دسترس نیست — Orbit</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -148,7 +148,7 @@ function cmsUnavailableHtml(code: string, heading: string): string {
   <main class="card">
     <div class="badge">⚙️</div>
     <h1>${heading}</h1>
-    <p>پنل مدیریت AbrIT پاسخ نمی‌دهد. لطفاً چند لحظه بعد دوباره تلاش کنید؛ اگر مشکل ادامه داشت با پشتیبانی تماس بگیرید.</p>
+    <p>پنل مدیریت Orbit پاسخ نمی‌دهد. لطفاً چند لحظه بعد دوباره تلاش کنید؛ اگر مشکل ادامه داشت با پشتیبانی تماس بگیرید.</p>
     <a href="/" >بازگشت به صفحه اصلی</a>
     <p class="hint">کد خطا: ${code}</p>
   </main>
@@ -159,7 +159,7 @@ function cmsUnavailableHtml(code: string, heading: string): string {
 function parseTarget(configured: string): URL | null {
   try {
     const target = new URL(configured);
-    if (!(["http:", "https:"].includes(target.protocol)) || target.username || target.password) {
+    if (!("http:" === target.protocol || "https:" === target.protocol) || target.username || target.password) {
       return null;
     }
     return target;
@@ -236,7 +236,7 @@ function chooseUpstreamHost(incomingHost: string | null, target: URL): { host: s
 /**
  * Builds the upstream URL with an IMMUTABLE origin: the path is rebuilt from
  * the (already URL-decoded) catch-all segments, each re-encoded with
- * encodeURIComponent — so "//evil.com", "\\evil.com" or "%2F%2Fevil.com"
+ * encodeURIComponent — so "//evil.com", "\\\\evil.com" or "%2F%2Fevil.com"
  * inputs can only ever become literal (encoded) path segments of the trusted
  * target, never a new authority. The query string is copied via the URL
  * setters, which cannot alter the origin either.
@@ -276,12 +276,12 @@ function trustedRedirectOrigins(target: URL): Set<string> {
  *
  * Rules:
  *   1. A raw Location that is already a safe relative reference (exactly one
- *      leading "/" — never "//" or "/\", no backslash anywhere, no control
+ *      leading "/" — never "//" or "/\\", no backslash anywhere, no control
  *      characters) is preserved untouched; the browser stays on the origin
  *      it already used.
  *   2. Everything else is parsed against the PINNED target origin. WHATWG
  *      parsing normalizes backslashes to slashes for special schemes, so
- *      "\\evil.test", "\evil.test" and "/\evil.test" all resolve to
+ *      "\\\\evil.test", "\\evil.test" and "/\\evil.test" all resolve to
  *      http://evil.test/… and fail the trusted-origin check below. Encoded
  *      slashes/backslashes stay percent-encoded path characters — they can
  *      never reintroduce an authority.
