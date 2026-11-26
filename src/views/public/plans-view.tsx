@@ -47,7 +47,7 @@ export default function PlansView() {
   );
 
   const handleSelect = (pkg: CommercialPackageDTO) => {
-    // The free plan is an ACTIVATION (AbrIT Drive 100 MB), not a purchase.
+    // The free plan is an ACTIVATION (Orbit Drive 100 MB), not a purchase.
     if (!pkg.orderable) {
       if (user) {
         router.navigate(routes.portalDrive);
@@ -128,15 +128,15 @@ export default function PlansView() {
                 <Cloud className="size-5" />
               </span>
               <div>
-                <h3 className="text-sm font-extrabold">۱۰۰ مگابایت فضای ابری AbrIT Drive — رایگان</h3>
+                <h3 className="text-sm font-extrabold">۱۰۰ مگابایت فضای ابری Orbit Drive — رایگان</h3>
                 <p className="mt-1 max-w-2xl text-xs leading-6 text-muted-foreground">
-                  هر مشتری AbrIT یک حساب آزمایشی AbrIT Drive (Nextcloud) با ۱۰۰ مگابایت فضای رایگان دریافت می‌کند؛
+                  هر مشتری Orbit یک حساب آزمایشی Orbit Drive (Nextcloud) با ۱۰۰ مگابایت فضای رایگان دریافت می‌کند؛
                   با خرید هر پکیج، سهمیه فضای ابری شما به‌طور خودکار مطابق همان پکیج (۱۰ تا ۲۵۰ گیگابایت) ارتقا می‌یابد.
                 </p>
               </div>
             </div>
             <Button variant="outline" className="shrink-0" onClick={() => router.navigate(user ? routes.portalDrive : routes.register)}>
-              {user ? "مشاهده AbrIT Drive" : "ساخت حساب رایگان"}
+              {user ? "مشاهده Orbit Drive" : "ساخت حساب رایگان"}
             </Button>
           </div>
         </Reveal>
@@ -152,7 +152,7 @@ export default function PlansView() {
         {catalog.isLoading || catalog.data === undefined ? (
           <SkeletonCards count={5} />
         ) : (
-          <PlanCarousel ariaLabel="پکیج‌های خدمات مدیریت‌شده AbrIT">
+          <PlanCarousel ariaLabel="پکیج‌های خدمات مدیریت‌شده Orbit">
             {packages.map((pkg) => (
               <PriceCard key={pkg.code} pkg={pkg} ctaLabel="پیکربندی و خرید" onSelect={handleSelect} />
             ))}
@@ -197,7 +197,7 @@ export default function PlansView() {
             <Reveal>
               <div className="overflow-x-auto rounded-2xl border bg-card">
                 <table className="w-full min-w-[780px] border-collapse text-sm">
-                  <caption className="sr-only">مقایسه ویژگی‌های پکیج‌های خدمات مدیریت‌شده AbrIT</caption>
+                  <caption className="sr-only">مقایسه ویژگی‌های پکیج‌های خدمات مدیریت‌شده Orbit</caption>
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th
@@ -217,7 +217,7 @@ export default function PlansView() {
                         >
                           <span className="inline-flex items-center gap-1.5">
                             {pkg.nameFa}
-                            {pkg.featured ? <Star className="size-3 fill-current" aria-label="پیشنهاد AbrIT" /> : null}
+                            {pkg.featured ? <Star className="size-3 fill-current" aria-label="پیشنهاد Orbit" /> : null}
                           </span>
                           <span className="mt-1 block text-[10px] font-normal text-muted-foreground" dir="ltr">
                             {pkg.nameEn}
