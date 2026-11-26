@@ -1,6 +1,6 @@
 "use client";
 
-// AbrIT core UI kit — small, composable building blocks shared by every area
+// Orbit core UI kit — small, composable building blocks shared by every area
 // (public site, auth, portal, admin). All RTL-aware and theme-aware.
 
 import { forwardRef, Fragment, type ReactNode } from "react";
@@ -20,7 +20,7 @@ import { AnimatedNumber } from "./motion";
 import { toFaDigits } from "@/lib/format/fa";
 
 // ---------------------------------------------------------------------------
-// Brand — the AbrIT identity (geometric “A” mark, navy tile + electric bar).
+// Brand — the Orbit identity (geometric “A” mark, navy tile + electric bar).
 // Single source of truth: the same geometry ships as public/brand/*.svg,
 // src/app/icon.svg (favicon) and the Orchard theme assets. The wordmark stays
 // as styled text (Vazirmatn everywhere) so it renders crisply at any size.
@@ -49,7 +49,7 @@ export function Logo({ className, textClassName }: { className?: string; textCla
       <LogoMark />
       <span className={cn("flex flex-col leading-none", textClassName)}>
         <span className="text-lg font-extrabold tracking-tight ltr-iso" dir="ltr">
-          Abr<span className="text-[#3E9BFF]">IT</span>
+          Orb<span className="text-[#3E9BFF]">it</span>
         </span>
         <span className="text-[10px] font-medium text-muted-foreground">خدمات مدیریت‌شده IT</span>
       </span>
