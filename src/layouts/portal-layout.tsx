@@ -71,7 +71,7 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    items: [{ to: routes.portalDrive, label: "AbrIT Drive", icon: Cloud }],
+    items: [{ to: routes.portalDrive, label: "Orbit Drive", icon: Cloud }],
   },
   {
     items: [
@@ -110,7 +110,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               {(user.name ?? user.email).slice(0, 2)}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-xs font-bold">{user.name ?? "کاربر AbrIT"}</p>
+              <p className="truncate text-xs font-bold">{user.name ?? "کاربر Orbit"}</p>
               <p className="truncate text-[10px] text-muted-foreground" dir="ltr">
                 {user.email}
               </p>
@@ -176,7 +176,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t p-4">
         <p className="text-[10px] leading-5 text-muted-foreground">
-          پنل کاربری AbrIT
+          پنل کاربری Orbit
           <br />
           نسخه پلتفرم ۲.۰ — تعرفه رسمی ۱۴۰۵
         </p>
@@ -261,7 +261,7 @@ function UserMenu() {
           aria-label="منوی کاربر"
         >
           <span className="hidden text-start sm:block">
-            <span className="block text-xs font-bold leading-4">{user.name ?? "کاربر AbrIT"}</span>
+            <span className="block text-xs font-bold leading-4">{user.name ?? "کاربر Orbit"}</span>
             <span className="block text-[10px] text-muted-foreground">{user.role === "customer" ? "مشتری" : user.role === "admin" ? "مدیر سیستم" : "کارشناس"}</span>
           </span>
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-xs font-extrabold text-primary">
@@ -375,7 +375,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
         <footer className="mt-auto border-t bg-card/50">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-muted-foreground md:px-6 lg:px-8">
-            <span>© {new Date().getFullYear()} AbrIT — پنل کاربری</span>
+            <span>© {new Date().getFullYear()} Orbit — پنل کاربری</span>
             <span className="flex items-center gap-2">
               <StatusBadge status={me.data?.entitledPlanCode ? "active" : "not_provisioned"} label={me.data?.entitledPlanCode ? "اشتراک سازمانی فعال" : "بدون اشتراک فعال"} />
             </span>

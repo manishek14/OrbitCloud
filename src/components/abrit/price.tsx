@@ -40,7 +40,7 @@ export function PriceCard({
       {pkg.featured ? (
         <span className="absolute -top-3.5 start-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1 text-[11px] font-bold text-primary-foreground shadow-md">
           <Star className="size-3 fill-current" />
-          پیشنهاد AbrIT
+          پیشنهاد Orbit
         </span>
       ) : null}
 
@@ -49,7 +49,7 @@ export function PriceCard({
           <h3 className="text-base font-extrabold">{pkg.nameFa}</h3>
           <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{pkg.audienceFa}</p>
         </div>
-        <span className="rounded-lg bg-primary/10 p-2.5 text-primary" title="فضای ابری AbrIT Drive">
+        <span className="rounded-lg bg-primary/10 p-2.5 text-primary" title="فضای ابری Orbit Drive">
           <Cloud className="size-5" />
         </span>
       </div>
@@ -86,7 +86,7 @@ export function PriceCard({
             <Cloud className="size-5 shrink-0 text-success" aria-hidden="true" />
             <div className="text-start">
               <p className="text-sm font-extrabold">۱۰۰ مگابایت فضای ابری</p>
-              <p className="text-[10px] leading-4 text-muted-foreground">AbrIT Drive — بدون هزینه</p>
+              <p className="text-[10px] leading-4 text-muted-foreground">Orbit Drive — بدون هزینه</p>
             </div>
           </div>
         </div>

@@ -1,11 +1,11 @@
-# AbrIT CMS Cloud
+# Orbit CMS Cloud
 
-AbrIT Orchard Core Client Portal — production-ready stack combining:
+Orbit Orchard Core Client Portal — production-ready stack combining:
 
-- **AbrIT Portal** (Next.js 16): public site, customer portal, authentication
+- **Orbit Portal** (Next.js 16): public site, customer portal, authentication
   (SMS.ir OTP), commerce (plans/quotes/orders), ZarinPal & Zibal sandbox
-  payments, support tickets, AbrIT Drive client.
-- **AbrIT CMS** (Orchard Core 3.x, .NET 10): the **real** administration CMS
+  payments, support tickets, Orbit Drive client.
+- **Orbit CMS** (Orchard Core 3.x, .NET 10): the **real** administration CMS
   at `/admin` — content management, customers, orders, admin themes. It is a
   separate application, proxied behind the same origin by the portal.
 - **PostgreSQL 16**: two logical databases — `abrit_portal` (Prisma, canonical
@@ -61,7 +61,11 @@ Full guide incl. admin bootstrap, backups and the production checklist:
   login, OTP policy) with browser evidence
 - [`docs/AUDIT_REPORT.md`](docs/AUDIT_REPORT.md) — source-level audit
 - [`docs/ABRIT_DRIVE_INTEGRATION.md`](docs/ABRIT_DRIVE_INTEGRATION.md) —
-  Nextcloud/AbrIT Drive integration contract
+  Nextcloud/Orbit Drive integration contract
+- [`docs/ORBITCLOUD_REBRAND_REVIEW_2026-11-27.md`](docs/ORBITCLOUD_REBRAND_REVIEW_2026-11-27.md) —
+  2026-11-27 independent review + AbrIT → Orbit rebrand record
+- [`docs/ORCHARD_HOSTING_GUIDE.md`](docs/ORCHARD_HOSTING_GUIDE.md) — hosting
+  the Orchard CMS without a dedicated server (Fly.io walkthrough)
 
 ## Development & testing
 
