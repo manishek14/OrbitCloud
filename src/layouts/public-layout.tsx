@@ -45,7 +45,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
-          <Link to={routes.home} aria-label="AbrIT — صفحه اصلی" className="shrink-0">
+          <Link to={routes.home} aria-label="Orbit — صفحه اصلی" className="shrink-0">
             <Logo />
           </Link>
 
@@ -79,7 +79,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-72 p-0">
-                <SheetTitle className="sr-only">منوی سایت AbrIT</SheetTitle>
+                <SheetTitle className="sr-only">منوی سایت Orbit</SheetTitle>
                 <div className="flex h-full flex-col">
                   <div className="flex items-center justify-between border-b p-4">
                     <Logo />
@@ -127,7 +127,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <div className="col-span-2 md:col-span-1">
               <Logo />
               <p className="mt-4 max-w-xs text-xs leading-6 text-muted-foreground">
-                AbrIT ارائه‌دهنده خدمات مدیریت‌شده فناوری اطلاعات و فضای ابری سازمانی برای کسب‌وکارهای
+                Orbit ارائه‌دهنده خدمات مدیریت‌شده فناوری اطلاعات و فضای ابری سازمانی برای کسب‌وکارهای
                 ایرانی — با تعرفه رسمی ۱۴۰۵ و SLA مشخص.
               </p>
             </div>
@@ -147,7 +147,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <h3 className="mb-3 text-xs font-extrabold">سرویس‌ها</h3>
               <ul className="space-y-2.5">
                 <li><Link to={routes.services} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">مدیریت‌شده IT</Link></li>
-                <li><Link to={routes.portalDrive} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">AbrIT Drive</Link></li>
+                <li><Link to={routes.portalDrive} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">Orbit Drive</Link></li>
                 <li><Link to={routes.plans} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">تعرفه پکیج‌ها</Link></li>
                 <li><Link to={routes.faq} className="inline-block py-1 text-xs text-muted-foreground transition-colors hover:text-primary">سوالات متداول</Link></li>
               </ul>
@@ -164,7 +164,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t pt-6 md:flex-row">
             <p className="text-[11px] text-muted-foreground">
-              © {new Date().getFullYear()} AbrIT — کلیه حقوق محفوظ است.
+              © {new Date().getFullYear()} Orbit — کلیه حقوق محفوظ است.
             </p>
             <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <LogoMark className="size-5" />

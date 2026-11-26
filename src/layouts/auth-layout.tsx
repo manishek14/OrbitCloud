@@ -10,7 +10,7 @@ import { Logo } from "@/components/abrit/ui";
 import { ThemeSwitcher } from "@/components/abrit/theme-switcher";
 
 const HIGHLIGHTS = [
-  { icon: Cloud, title: "فضای ابری AbrIT Drive", text: "حساب اختصاصی Nextcloud با سهمیه مطابق پکیج شما" },
+  { icon: Cloud, title: "فضای ابری Orbit Drive", text: "حساب اختصاصی Nextcloud با سهمیه مطابق پکیج شما" },
   { icon: ShieldCheck, title: "امنیت و شفافیت", text: "پرداخت با تأیید سمت سرور و اسنپ‌شات تغییرناپذیر پیش‌فاکتور" },
   { icon: Headset, title: "پشتیبانی با SLA", text: "مدت قرارداد و سطح خدمات دقیقاً مطابق تعرفه رسمی ۱۴۰۵" },
 ];
@@ -56,7 +56,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <p className="relative z-10 text-[11px] text-white/50">
-          © {new Date().getFullYear()} AbrIT — پلتفرم خدمات مدیریت‌شده فناوری اطلاعات
+          © {new Date().getFullYear()} Orbit — پلتفرم خدمات مدیریت‌شده فناوری اطلاعات
         </p>
       </aside>
 
