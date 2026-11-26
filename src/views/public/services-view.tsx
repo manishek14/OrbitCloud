@@ -1,6 +1,6 @@
 "use client";
 
-// خدمات AbrIT — full list of managed-IT services published from the admin CMS.
+// خدمات Orbit — full list of managed-IT services published from the admin CMS.
 // Every card is real CMS content; loading/error/empty states are honest.
 
 import { ArrowLeft, Cloud, Headset, Layers, ShieldCheck } from "lucide-react";
@@ -31,7 +31,7 @@ export default function ServicesView() {
         <div className="relative mx-auto max-w-7xl px-4 py-14 text-center md:px-6 md:py-20">
           <Reveal>
             <SectionTitle
-              eyebrow="خدمات AbrIT"
+              eyebrow="خدمات Orbit"
               title="خدمات مدیریت‌شده فناوری اطلاعات"
               description="زیرساخت IT سازمان شما — از مانیتورینگ و امنیت تا فضای ابری و Help Desk — به‌صورت یکپارچه و با SLA مشخص مدیریت می‌شود."
             />
