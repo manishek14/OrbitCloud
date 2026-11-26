@@ -4,7 +4,7 @@
 //
 // Every value below is taken verbatim from the final business document
 // «پکیج‌های خدمات مدیریت‌شده فناوری اطلاعات — تعرفه ۱۴۰۵»
-// (Abrit_Packages_1405_Final). No price, capacity, SLA, fee or discount may be
+// (Orbit_Packages_1405_Final). No price, capacity, SLA, fee or discount may be
 // duplicated anywhere else in the codebase (fixes audit finding COM-12: the
 // Orchard repository duplicated commercial values across 9+ sites, which
 // produced the divergent prices/SLA/durations shipped there).
@@ -88,7 +88,7 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
     // The FREE plan — explicitly required by the product specification.
     // Honest semantics: it covers the panel account and the 100 MB Orbit
     // Drive trial quota ONLY — no managed-IT services are included, so no
-    // users/endpoints/servers/SLA values are claimed (they render as «—»). 
+    // users/endpoints/servers/SLA values are claimed (they render as «—»).
     // It is NOT purchasable: activation happens from the Orbit Drive page.
     code: "free",
     nameFa: "رایگان",
