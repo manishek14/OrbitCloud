@@ -1,5 +1,5 @@
 @*
-    AbrIT branded admin login (Orchard Core Identity /Login).
+    Orbit branded admin login (Orchard Core Identity /Login).
     Real Orchard form contract preserved EXACTLY:
       • POST /Login with LoginForm.UserName / LoginForm.Password /
         LoginForm.RememberMe + __RequestVerificationToken (validated by the
@@ -21,15 +21,15 @@
 <div class="abrit-auth">
     <div class="abrit-auth__panel">
         <div class="abrit-auth__brand">
-            <img class="abrit-auth__mark" src="~/AbrITAdminTheme/img/abrit-icon.svg" alt="نماد AbrIT" width="44" height="44" />
+            <img class="abrit-auth__mark" src="~/AbrITAdminTheme/img/orbit-icon.svg" alt="نماد Orbit" width="44" height="44" />
             <span class="abrit-auth__brandname">
-                <strong>AbrIT</strong>
+                <strong>Orbit</strong>
                 <small>مدیریت سامانه — پنل مدیران</small>
             </span>
         </div>
 
-        <section class="abrit-auth__card" aria-labelledby="abrit-login-title">
-            <h1 class="abrit-auth__title" id="abrit-login-title">ورود به مدیریت سامانه</h1>
+        <section class="abrit-auth__card" aria-labelledby="orbit-login-title">
+            <h1 class="abrit-auth__title" id="orbit-login-title">ورود به مدیریت سامانه</h1>
             <p class="abrit-auth__subtitle">
                 با نام کاربری یا ایمیل مدیر و گذرواژه وارد شوید. این صفحه همان سیستم
                 هویت Orchard Core است و ورود مشتریان از مسیر جداگانه انجام می‌شود.
@@ -37,7 +37,7 @@
 
             @if (hasError)
             {
-                <div class="abrit-auth__error" id="abrit-login-error" role="alert">
+                <div class="abrit-auth__error" id="orbit-login-error" role="alert">
                     نام کاربری یا گذرواژه صحیح نیست؛ دوباره تلاش کنید.
                 </div>
             }
@@ -72,12 +72,12 @@
 
             <div class="abrit-auth__links">
                 <a href="/ForgotPassword">گذرواژه را فراموش کرده‌اید؟</a>
-                <a href="/auth/login">ورود مشتریان AbrIT</a>
+                <a href="/auth/login">ورود مشتریان Orbit</a>
             </div>
         </section>
 
         <p class="abrit-auth__footer">
-            AbrIT — سامانه مدیریت فناوری اطلاعات<br />
+            Orbit — سامانه مدیریت فناوری اطلاعات<br />
             این پنل فقط برای مدیران سیستم است.
         </p>
     </div>

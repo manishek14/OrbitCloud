@@ -1,11 +1,11 @@
 @inject IOptions<OrchardCore.Admin.AdminOptions> AdminOptions
 <zone name="HeadMeta">
-    <link rel="icon" type="image/svg+xml" href="~/AbrITAdminTheme/img/abrit-icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="~/AbrITAdminTheme/img/orbit-icon.svg" />
 </zone>
 <style asp-name="abrit-admin" at="Head"></style>
 <style asp-name="abrit-admin-polish" at="Head"></style>
 <script at="Head">
-    // AbrIT admin appearance: DARK is the default; an explicit user choice
+    // Orbit admin appearance: DARK is the default; an explicit user choice
     // persists. Integration note: OrchardCore.Themes' theme-head script owns
     // the theme store ("{tenant}-theme" in localStorage) and re-applies the
     // preferred theme when <body> mounts — so this script seeds and applies
@@ -28,6 +28,6 @@
     })();
 </script>
 <a class="ta-navbar-brand navbar-brand" href="@Url.Content("~/" + AdminOptions.Value.AdminUrlPrefix)">
-    <img class="abrit-admin-brand-mark" src="~/AbrITAdminTheme/img/abrit-icon.svg" alt="نماد AbrIT" width="34" height="34" />
-    <span>AbrIT <small>مدیریت سامانه</small></span>
+    <img class="abrit-admin-brand-mark" src="~/AbrITAdminTheme/img/orbit-icon.svg" alt="نماد Orbit" width="34" height="34" />
+    <span>Orbit <small>مدیریت سامانه</small></span>
 </a>
