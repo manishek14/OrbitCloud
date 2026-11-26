@@ -1,6 +1,6 @@
 "use client";
 
-// Public homepage — AbrIT as a technology & managed-IT provider. Content is
+// Public homepage — Orbit as a technology & managed-IT provider. Content is
 // real: services & FAQ come from the CMS (managed in the admin), pricing
 // preview from the authoritative catalog API.
 
@@ -34,14 +34,14 @@ import { AnimatedContent } from "@/components/abrit/motion";
 const STEPS = [
   { icon: Layers, title: "انتخاب پکیج", text: "پکیج متناسب با تعداد کاربر و Endpoint خود را از تعرفه رسمی ۱۴۰۵ انتخاب کنید." },
   { icon: ShieldCheck, title: "قرارداد شفاف", text: "پیش‌فاکتور دقیق با ریز اقلام، تخفیف مدت قرارداد و هزینه Onboarding — بدون عدد پنهان." },
-  { icon: Cloud, title: "تحویل سرویس", text: "بلافاصله پس از تأیید پرداخت، اشتراک فعال و حساب فضای ابری AbrIT Drive شما ساخته می‌شود." },
+  { icon: Cloud, title: "تحویل سرویس", text: "بلافاصله پس از تأیید پرداخت، اشتراک فعال و حساب فضای ابری Orbit Drive شما ساخته می‌شود." },
   { icon: Headset, title: "پشتیبانی با SLA", text: "تیکت‌ها از پنل پیگیری می‌شوند؛ زمان شروع رسیدگی مطابق SLA پکیج شما تضمین شده است." },
 ];
 
 const TRUST_POINTS = [
   { icon: ShieldCheck, title: "امنیت سازمانی", text: "مدیریت Firewall، امنیت Endpoint و پاسخ به رخداد با اولویت‌بندی SLA" },
   { icon: Cpu, title: "زیرساخت مدیریت‌شده", text: "مانیتورینگ شبکه و سرور، Backup & Recovery با پایش دوره‌ای" },
-  { icon: Cloud, title: "فضای ابری اختصاصی", text: "AbrIT Drive بر پایه Nextcloud با سهمیه ۱۰ تا ۲۵۰ گیگابایت" },
+  { icon: Cloud, title: "فضای ابری اختصاصی", text: "Orbit Drive بر پایه Nextcloud با سهمیه ۱۰ تا ۲۵۰ گیگابایت" },
   { icon: TrendingUp, title: "گزارش‌پذیری", text: "پنل مشتری با سفارش‌ها، فاکتورها و وضعیت لحظه‌ای سرویس‌ها" },
 ];
 
@@ -82,7 +82,7 @@ export default function HomeView() {
           </Reveal>
           <Reveal delay={0.16}>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base md:leading-8">
-              AbrIT کل زیرساخت فناوری اطلاعات سازمان شما — از مانیتورینگ شبکه و امنیت تا فضای ابری
+              Orbit کل زیرساخت فناوری اطلاعات سازمان شما — از مانیتورینگ شبکه و امنیت تا فضای ابری
               سازمانی — را با قراردادهای ۱ تا ۶ ماهه، SLA مشخص و تعرفه شفاف مدیریت می‌کند.
             </p>
           </Reveal>
@@ -117,7 +117,7 @@ export default function HomeView() {
       {/* ------------------------------------------------------------ Services */}
       <section className="mx-auto max-w-7xl px-4 py-16 md:px-6 md:py-24">
         <SectionTitle
-          eyebrow="خدمات AbrIT"
+          eyebrow="خدمات Orbit"
           title="همه آنچه زیرساخت IT شما نیاز دارد"
           description="از مدیریت شبکه و امنیت تا فضای ابری و پشتیبانی — به‌صورت پکیج‌های یکپارچه."
         />
@@ -151,7 +151,7 @@ export default function HomeView() {
       <section className="border-y bg-card/40">
         <div className="mx-auto max-w-7xl px-4 py-16 md:px-6 md:py-20">
           <SectionTitle
-            eyebrow="چرا AbrIT"
+            eyebrow="چرا Orbit"
             title="مدیریت‌شده یعنی قابل‌اتکا و قابل‌اندازه‌گیری"
           />
           <Stagger className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -265,7 +265,7 @@ export default function HomeView() {
           <div className="relative">
             <LogoMark className="mx-auto size-14" />
             <h2 className="mx-auto mt-5 max-w-2xl text-2xl font-extrabold md:text-3xl">
-              آماده‌اید زیرساخت IT خود را به AbrIT بسپارید؟
+              آماده‌اید زیرساخت IT خود را به Orbit بسپارید؟
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-white/60">
               همین حالا حساب بسازید، پکیج مناسب را انتخاب کنید و پیش‌فاکتور دقیق را در پنل ببینید.
@@ -289,7 +289,7 @@ export default function HomeView() {
 // Fallback when no service content is published yet (honest empty state).
 const FALLBACK_SERVICES = [
   { id: "s1", slug: "managed-it", title: "خدمات مدیریت‌شده فناوری اطلاعات", excerpt: "مانیتورینگ، امنیت و مدیریت کامل زیرساخت با SLA مشخص.", body: "" },
-  { id: "s2", slug: "abrit-drive", title: "AbrIT Drive — فضای ابری سازمانی", excerpt: "حساب اختصاصی Nextcloud با همگام‌سازی و اشتراک‌گذاری امن.", body: "" },
+  { id: "s2", slug: "orbit-drive", title: "Orbit Drive — فضای ابری سازمانی", excerpt: "حساب اختصاصی Nextcloud با همگام‌سازی و اشتراک‌گذاری امن.", body: "" },
   { id: "s3", slug: "security", title: "امنیت شبکه و Endpoint", excerpt: "Firewall Management و امنیت دستگاه‌ها با پاسخ به رخداد.", body: "" },
   { id: "s4", slug: "support", title: "پشتیبانی و Help Desk", excerpt: "ثبت و پیگیری تیکت با اولویت‌بندی مطابق SLA پکیج.", body: "" },
 ] as const;
