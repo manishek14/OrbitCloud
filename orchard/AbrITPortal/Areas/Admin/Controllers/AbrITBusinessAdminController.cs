@@ -1,5 +1,5 @@
 // ============================================================================
-// AbrIT business administration — REAL Orchard Core admin pages.
+// Orbit business administration — REAL Orchard Core admin pages.
 //
 // These pages are part of the actual Orchard administration (/Admin/AbrIT/*)
 // and read the CANONICAL business records (customers, orders, payments,
@@ -27,7 +27,7 @@ namespace AbrITPortal.Areas.Admin.Controllers;
 public sealed class AbrITBusinessAdminController(CommerceApiClient commerce, ILogger<AbrITBusinessAdminController> logger) : Controller
 {
     private const string NotConfiguredMessage =
-        "اتصال به سرویس تجاری AbrIT پیکربندی نشده است (AbrIT:CommerceApi در appsettings). داده‌های مشتریان/سفارش‌ها از منبع کانونی (اپلیکیشن Next.js) خوانده می‌شوند.";
+        "اتصال به سرویس تجاری Orbit پیکربندی نشده است (AbrIT:CommerceApi در appsettings). داده‌های مشتریان/سفارش‌ها از منبع کانونی (اپلیکیشن Next.js) خوانده می‌شوند.";
 
     private IActionResult NotConfigured() => View("Unavailable", new UnavailableViewModel
     {
@@ -41,7 +41,7 @@ public sealed class AbrITBusinessAdminController(CommerceApiClient commerce, ILo
         return View("Unavailable", new UnavailableViewModel
         {
             Title = "خطا در دریافت داده‌ها",
-            Message = "فراخوانی سرویس تجاری AbrIT ناموفق بود؛ چند لحظه بعد دوباره تلاش کنید. جزئیات در لاگ سرور ثبت شد.",
+            Message = "فراخوانی سرویس تجاری Orbit ناموفق بود؛ چند لحظه بعد دوباره تلاش کنید. جزئیات در لاگ سرور ثبت شد.",
         });
     }
 

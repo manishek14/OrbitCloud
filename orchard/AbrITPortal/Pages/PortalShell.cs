@@ -36,7 +36,7 @@ public static class PortalShell
         if (authenticated)
         {
             nav.Append(Link("/dashboard", "داشبورد", active == "dashboard"));
-            nav.Append(Link("/drive", "AbrIT Drive", active == "drive"));
+            nav.Append(Link("/drive", "Orbit Drive", active == "drive"));
             nav.Append(Link("/account", "حساب کاربری", active == "account"));
         }
         nav.Append("<span class='portal-nav__spacer'></span><div class='portal-nav__auth'>");
@@ -60,7 +60,7 @@ public static class PortalShell
             .Append("<!doctype html><html lang='fa' dir='rtl'><head><meta charset='utf-8'>")
             .Append("<meta name='viewport' content='width=device-width,initial-scale=1'>")
             .Append("<meta name='theme-color' content='#101A30'>")
-            .Append("<title>").Append(E(title)).Append(" - AbrIT</title>")
+            .Append("<title>").Append(E(title)).Append(" - Orbit</title>")
             .Append("<link rel='preload' href='/AbrITPortalTheme/fonts/Vazirmatn-Regular.woff2' as='font' type='font/woff2' crossorigin>")
             .Append("<link rel='preload' href='/AbrITPortalTheme/fonts/Vazirmatn-Bold.woff2' as='font' type='font/woff2' crossorigin>")
             .Append("<link rel='stylesheet' href='").Append(CssPath).Append("'>")
@@ -70,7 +70,7 @@ public static class PortalShell
             .Append("<a class='skip-link' href='#main-content'>پرش به محتوای اصلی</a>")
             .Append("<header class='portal-header'><div class='portal-header__inner'>")
             .Append("<a class='portal-brand' href='/services'><span class='portal-brand__mark'>").Append(Mark)
-            .Append("</span><span>AbrIT<span class='portal-brand__sub'>پرتال مشتریان</span></span></a>")
+            .Append("</span><span>Orbit<span class='portal-brand__sub'>پرتال مشتریان</span></span></a>")
             .Append("<input type='checkbox' id='portal-nav-toggle' class='portal-nav-toggle'>")
             .Append("<label class='portal-nav-burger' for='portal-nav-toggle' aria-label='نمایش منو'>").Append(Burger).Append("</label>")
             .Append("<nav class='portal-nav' aria-label='ناوبری اصلی'>").Append(nav).Append("</nav>")
@@ -91,13 +91,13 @@ public static class PortalShell
         var nav = new StringBuilder()
             .Append(AppLink("/dashboard", "نمای کلی", active == "dashboard"))
             .Append(AppLink("/services", "پلن‌ها و سرویس‌ها", active == "services"))
-            .Append(AppLink("/drive", "AbrIT Drive", active == "drive"))
+            .Append(AppLink("/drive", "Orbit Drive", active == "drive"))
             .Append(AppLink("/account", "حساب کاربری", active == "account"));
 
         return new StringBuilder()
             .Append("<!doctype html><html lang='fa' dir='rtl'><head><meta charset='utf-8'>")
             .Append("<meta name='viewport' content='width=device-width,initial-scale=1'>")
-            .Append("<meta name='theme-color' content='#101A30'><title>").Append(E(title)).Append(" - AbrIT</title>")
+            .Append("<meta name='theme-color' content='#101A30'><title>").Append(E(title)).Append(" - Orbit</title>")
             .Append("<link rel='preload' href='/AbrITPortalTheme/fonts/Vazirmatn-Regular.woff2' as='font' type='font/woff2' crossorigin>")
             .Append("<link rel='preload' href='/AbrITPortalTheme/fonts/Vazirmatn-Bold.woff2' as='font' type='font/woff2' crossorigin>")
             .Append("<link rel='stylesheet' href='").Append(CssPath).Append("'>")
@@ -106,7 +106,7 @@ public static class PortalShell
             .Append("</head><body class='customer-app'><a class='skip-link' href='#main-content'>پرش به محتوای اصلی</a>")
             .Append("<div class='app-shell'><aside class='app-sidebar' aria-label='ناوبری پنل مشتری'>")
             .Append("<a class='portal-brand app-brand' href='/dashboard'><span class='portal-brand__mark'>").Append(Mark)
-            .Append("</span><span>AbrIT<span class='portal-brand__sub'>فضای مشتریان</span></span></a>")
+            .Append("</span><span>Orbit<span class='portal-brand__sub'>فضای مشتریان</span></span></a>")
             .Append("<section class='app-account-context' aria-label='حساب فعال'><span class='app-account-context__avatar' aria-hidden='true'>")
             .Append(E(initial)).Append("</span><span><small>حساب فعال</small><strong>").Append(name).Append("</strong></span></section>")
             .Append("<nav class='app-nav' aria-label='ناوبری فضای مشتری'><span class='app-nav__label'>فضای کاری</span>").Append(nav).Append("</nav>")
@@ -117,7 +117,7 @@ public static class PortalShell
             .Append(E(title)).Append("</p><h1>").Append(E(title)).Append("</h1></div><a class='app-topbar__profile' href='/account'>")
             .Append("<span class='app-account-context__avatar' aria-hidden='true'>").Append(E(initial)).Append("</span><span>")
             .Append(name).Append("</span></a></header><div class='app-content'>").Append(body)
-            .Append("</div><footer class='app-footer'><span>AbrIT · پنل امن مشتریان</span><a href='/services'>راهنمای پلن‌ها و قیمت‌گذاری</a></footer></main></div>")
+            .Append("</div><footer class='app-footer'><span>Orbit · پنل امن مشتریان</span><a href='/services'>راهنمای پلن‌ها و قیمت‌گذاری</a></footer></main></div>")
             .Append("</body></html>")
             .ToString();
     }
@@ -152,16 +152,16 @@ public static class PortalShell
     private static string Footer(bool authenticated)
     {
         var quick = authenticated
-            ? "<li><a href='/dashboard'>داشبورد</a></li><li><a href='/services'>خدمات و پلن‌ها</a></li><li><a href='/drive'>AbrIT Drive</a></li><li><a href='/account'>حساب کاربری</a></li>"
+            ? "<li><a href='/dashboard'>داشبورد</a></li><li><a href='/services'>خدمات و پلن‌ها</a></li><li><a href='/drive'>Orbit Drive</a></li><li><a href='/account'>حساب کاربری</a></li>"
             : "<li><a href='/services'>خدمات و پلن‌ها</a></li><li><a href='/Login'>ورود</a></li><li><a href='/customer/register'>ثبت‌نام</a></li>";
         return "<footer class='portal-footer'><div class='portal-footer__grid'>"
-            + "<div><div class='portal-footer__brand'><span class='portal-brand__mark'>" + Mark + "</span><span>AbrIT</span></div>"
-            + "<p>پرتال مشتریان AbrIT برای مدیریت خدمات، سفارش‌ها و فضای ابری شما.</p></div>"
+            + "<div><div class='portal-footer__brand'><span class='portal-brand__mark'>" + Mark + "</span><span>Orbit</span></div>"
+            + "<p>پرتال مشتریان Orbit برای مدیریت خدمات، سفارش‌ها و فضای ابری شما.</p></div>"
             + "<div><h3 class='portal-footer__title'>دسترسی سریع</h3><ul class='portal-footer__links'>" + quick + "</ul></div>"
             + "<div><h3 class='portal-footer__title'>راهنما</h3><ul class='portal-footer__links'>"
             + "<li><a href='/services'>مقایسه پلن‌ها و محاسبه قیمت</a></li>"
             + "<li><a href='/customer/recover'>بازیابی گذرواژه</a></li></ul></div>"
-            + "</div><div class='portal-footer__bottom'>© AbrIT — تمامی حقوق محفوظ است.</div></footer>";
+            + "</div><div class='portal-footer__bottom'>© Orbit — تمامی حقوق محفوظ است.</div></footer>";
     }
 
     private static string E(string? text) => WebUtility.HtmlEncode(text ?? "");
