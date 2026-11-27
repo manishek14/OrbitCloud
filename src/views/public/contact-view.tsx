@@ -108,7 +108,7 @@ export default function ContactView() {
             تماس با ما
           </span>
           <h1 className="mt-4 text-2xl font-extrabold tracking-tight md:text-3xl">
-            گفت‌وگو با تیم AbrIT
+            گفت‌وگو با تیم Orbit
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
             برای مشاوره انتخاب پکیج، سفارش‌های سازمانی یا سوالات فنی، پیام خود را ثبت کنید؛ کارشناسان ما در ساعات کاری پاسخ می‌دهند.
@@ -281,7 +281,7 @@ export default function ContactView() {
             <span className="inline-flex rounded-lg bg-primary/10 p-2.5 text-primary">
               <TicketCheck className="size-5" />
             </span>
-            <h2 className="mt-3.5 text-sm font-extrabold">مشتری AbrIT هستید؟</h2>
+            <h2 className="mt-3.5 text-sm font-extrabold">مشتری Orbit هستید؟</h2>
             <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
               درخواست‌های پشتیبانی را از پنل مشتری به‌صورت تیکت ثبت کنید تا با اولویت مطابق SLA پکیج شما پیگیری شوند.
             </p>

@@ -6,10 +6,10 @@
 // the Orchard repository duplicated commercial values across 9+ sites).
 //
 // Storage tiers follow «پکیج‌های خدمات مدیریت‌شده فناوری اطلاعات — تعرفه ۱۴۰۵»
-// (Abrit_Packages_1405_Final): Essential 10 GB, Standard 25 GB, Professional 50 GB,
+// (Orbit_Packages_1405_Final): Essential 10 GB, Standard 25 GB, Professional 50 GB,
 // Business 100 GB, Enterprise 250 GB of included cloud storage.
 // The "trial" plan implements the initial 100 MB test quota required by the
-// AbrIT Drive integration guide (سهمیه آزمایشی ۱۰۰ مگابایت).
+// Orbit Drive integration guide (سهمیه آزمایشی ۱۰۰ مگابایت).
 
 import { readCommercialCatalog } from "@/lib/commerce/catalog";
 
@@ -34,7 +34,7 @@ const TRIAL_PLAN: Omit<DrivePlan, "quotaBytes"> =
     audienceFa: "فعال‌سازی اولیه سرویس Drive",
     benefitsFa: [
       "سهمیه آزمایشی برای تست اتصال",
-      "ورود مستقیم به AbrIT Drive",
+      "ورود مستقیم به Orbit Drive",
       "قابل ارتقا به هر پلن سازمانی",
     ],
   };

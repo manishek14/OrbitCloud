@@ -31,7 +31,7 @@ export async function GET() {
   return NextResponse.json(
     {
       ok: dbStatus === "up",
-      service: "abrit-portal",
+      service: "orbit-portal",
       db: dbStatus,
       integrations: {
         sms: getSmsIrConfig().configured ? "configured" : "not_configured",

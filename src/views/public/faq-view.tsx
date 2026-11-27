@@ -98,7 +98,7 @@ export default function FaqView() {
           <EmptyState
             icon={<CircleHelp className="size-6" />}
             title="نتیجه‌ای یافت نشد"
-            description="عبارت دیگری را جست‌وجو کنید یا مستقیم با تیم AbrIT تماس بگیرید."
+            description="عبارت دیگری را جست‌وجو کنید یا مستقیم با تیم Orbit تماس بگیرید."
             action={
               <Button variant="outline" onClick={() => setQuery("")}>
                 پاک کردن جست‌وجو
@@ -139,7 +139,7 @@ export default function FaqView() {
         <div className="mt-10 rounded-2xl border bg-card p-6 text-center">
           <h2 className="text-sm font-extrabold">پاسخ سوال خود را پیدا نکردید؟</h2>
           <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
-            تیم فروش و پشتیبانی AbrIT در ساعات کاری پاسخگوی شماست.
+            تیم فروش و پشتیبانی Orbit در ساعات کاری پاسخگوی شماست.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
             <Button onClick={() => router.navigate(routes.contact)} className="gap-2">

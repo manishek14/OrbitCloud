@@ -4,7 +4,7 @@
 //
 // Every value below is taken verbatim from the final business document
 // «پکیج‌های خدمات مدیریت‌شده فناوری اطلاعات — تعرفه ۱۴۰۵»
-// (Abrit_Packages_1405_Final). No price, capacity, SLA, fee or discount may be
+// (Orbit_Packages_1405_Final). No price, capacity, SLA, fee or discount may be
 // duplicated anywhere else in the codebase (fixes audit finding COM-12: the
 // Orchard repository duplicated commercial values across 9+ sites, which
 // produced the divergent prices/SLA/durations shipped there).
@@ -42,7 +42,7 @@ export interface CommercialPackage {
   audienceFa: string;
   order: number;
   monthlyPriceToman: number;
-  /** Free plan is not purchasable — activation happens through AbrIT Drive. */
+  /** Free plan is not purchasable — activation happens through Orbit Drive. */
   orderable: boolean;
   includedUsers: number;
   includedEndpoints: number;
@@ -51,7 +51,7 @@ export interface CommercialPackage {
   includedSites: number;
   /** Managed network devices included (Cisco/MikroTik etc.). */
   includedNetworkDevices: number;
-  /** Included AbrIT Drive (Nextcloud) cloud storage, bytes. */
+  /** Included Orbit Drive (Nextcloud) cloud storage, bytes. */
   driveQuotaBytes: number;
   extraUserFeeTomanPerMonth: number;
   extraEndpointFeeTomanPerMonth: number;
@@ -61,7 +61,7 @@ export interface CommercialPackage {
   supportHoursFa: string;
   /** Top service bullets for the catalog cards (verbatim, abbreviated). */
   benefitsFa: string[];
-  /** «پیشنهاد AbrIT» — the document marks Professional as the recommended tier. */
+  /** «پیشنهاد Orbit» — the document marks Professional as the recommended tier. */
   featured: boolean;
   vpsFa: string | null;
   onSiteFa: string;
@@ -86,14 +86,14 @@ const GB = 1024 ** 3;
 export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
   {
     // The FREE plan — explicitly required by the product specification.
-    // Honest semantics: it covers the panel account and the 100 MB AbrIT
+    // Honest semantics: it covers the panel account and the 100 MB Orbit
     // Drive trial quota ONLY — no managed-IT services are included, so no
     // users/endpoints/servers/SLA values are claimed (they render as «—»).
-    // It is NOT purchasable: activation happens from the AbrIT Drive page.
+    // It is NOT purchasable: activation happens from the Orbit Drive page.
     code: "free",
     nameFa: "رایگان",
     nameEn: "Free",
-    audienceFa: "شروع رایگان — حساب پنل و ۱۰۰ مگابایت فضای ابری AbrIT Drive",
+    audienceFa: "شروع رایگان — حساب پنل و ۱۰۰ مگابایت فضای ابری Orbit Drive",
     order: 0,
     monthlyPriceToman: 0,
     orderable: false,
@@ -109,8 +109,8 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
     slaDetailFa: "پلن رایگان فاقد SLA خدمات مدیریت‌شده است.",
     supportHoursFa: "—",
     benefitsFa: [
-      "۱۰۰ مگابایت فضای ابری AbrIT Drive (Nextcloud)",
-      "حساب کاربری پنل مشتریان AbrIT",
+      "۱۰۰ مگابایت فضای ابری Orbit Drive (Nextcloud)",
+      "حساب کاربری پنل مشتریان Orbit",
       "ثبت و پیگیری تیکت پشتیبانی",
       "قابل ارتقا به هر پکیج مدیریت‌شده در هر زمان",
     ],
@@ -180,7 +180,7 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
     code: "professional",
     nameFa: "حرفه‌ای",
     nameEn: "Professional",
-    audienceFa: "پیشنهاد AbrIT — برای شرکت‌های در حال رشد و چندسرویسی",
+    audienceFa: "پیشنهاد Orbit — برای شرکت‌های در حال رشد و چندسرویسی",
     order: 3,
     monthlyPriceToman: 32_900_000,
     orderable: true,
@@ -199,7 +199,7 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
       "تمام خدمات پکیج استاندارد",
       "Site-to-Site VPN و VoIP/Issabel",
       "مانیتورینگ پیشرفته شبکه و Server",
-      "فضای ابری AbrIT تا ۵۰ گیگابایت",
+      "فضای ابری Orbit تا ۵۰ گیگابایت",
     ],
     featured: true,
     vpsFa: null,
@@ -228,10 +228,10 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
       "تمام خدمات پکیج حرفه‌ای",
       "مدیریت پیشرفته شبکه و Firewall",
       "Backup & Recovery با پایش روزانه",
-      "یک VPS ابری AbrIT + حضور ماهانه در مشهد",
+      "یک VPS ابری Orbit + حضور ماهانه در مشهد",
     ],
     featured: false,
-    vpsFa: "یک VPS ابری AbrIT: تا ۲ vCPU، ۴ GB RAM، ۸۰ GB Disk",
+    vpsFa: "یک VPS ابری Orbit: تا ۲ vCPU، ۴ GB RAM، ۸۰ GB Disk",
     onSiteFa: "یک نوبت برنامه‌ریزی‌شده در ماه (مشهد؛ حداکثر نیم‌روز کاری)",
   },
   {
@@ -256,11 +256,11 @@ export const COMMERCIAL_PACKAGES: CommercialPackage[] = [
     benefitsFa: [
       "Managed IT جامع و ۲۴×۷ برای رخدادهای P1",
       "مدیریت تا ۱۲ تجهیز شبکه و ۵ Site/Branch",
-      "فضای ابری AbrIT تا ۲۵۰ گیگابایت",
+      "فضای ابری Orbit تا ۲۵۰ گیگابایت",
       "دو VPS ابری + گزارش مدیریتی ماهانه",
     ],
     featured: false,
-    vpsFa: "دو VPS ابری AbrIT؛ مجموعاً تا ۸ vCPU، ۱۶ GB RAM، ۲۰۰ GB Disk",
+    vpsFa: "دو VPS ابری Orbit؛ مجموعاً تا ۸ vCPU، ۱۶ GB RAM، ۲۰۰ GB Disk",
     onSiteFa: "یک نوبت برنامه‌ریزی‌شده در هفته (مشهد؛ حداکثر نیم‌روز)",
   },
 ];
@@ -323,7 +323,7 @@ export const QUOTE_LIMITS = {
 
 export const COMMERCE_POLICY_FA = {
   prepaid:
-    "قراردادهای AbrIT به‌صورت پیش‌پرداخت هستند و در سه مدت ۱، ۳ و ۶ ماهه ارائه می‌شوند؛ تخفیف مدت فقط برای قراردادهای ۳ و ۶ ماهه اعمال می‌شود.",
+    "قراردادهای Orbit به‌صورت پیش‌پرداخت هستند و در سه مدت ۱، ۳ و ۶ ماهه ارائه می‌شوند؛ تخفیف مدت فقط برای قراردادهای ۳ و ۶ ماهه اعمال می‌شود.",
   minimumMonths: 1,
   allowedMonths: [1, 3, 6] as const,
   discountScope:

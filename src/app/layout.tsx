@@ -3,11 +3,11 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "AbrIT — پلتفرم خدمات مدیریت‌شده فناوری اطلاعات",
+  title: "Orbit — پلتفرم خدمات مدیریت‌شده فناوری اطلاعات",
   description:
-    "پلتفرم AbrIT: خدمات مدیریت‌شده IT، فضای ابری سازمانی AbrIT Drive، پنل مشتریان و مدیریت سرویس‌ها با SLA مشخص و تعرفه رسمی ۱۴۰۵.",
-  applicationName: "AbrIT Platform",
-  authors: [{ name: "AbrIT" }],
+    "پلتفرم Orbit: خدمات مدیریت‌شده IT، فضای ابری سازمانی Orbit Drive، پنل مشتریان و مدیریت سرویس‌ها با SLA مشخص و تعرفه رسمی ۱۴۰۵.",
+  applicationName: "Orbit Platform",
+  authors: [{ name: "Orbit" }],
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

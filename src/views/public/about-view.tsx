@@ -1,6 +1,6 @@
 "use client";
 
-// درباره AbrIT — the about page body is CMS-managed (type "page", slug "about");
+// درباره Orbit — the about page body is CMS-managed (type "page", slug "about");
 // value cards are static positioning statements, everything else comes from the API.
 
 import { ArrowLeft, FileText, Headset, Server, ShieldCheck } from "lucide-react";
@@ -31,7 +31,7 @@ const VALUE_CARDS = [
   {
     icon: Server,
     title: "زیرساخت سازمانی",
-    text: "مانیتورینگ شبکه و سرور، Backup & Recovery و فضای ابری سازمانی AbrIT Drive.",
+    text: "مانیتورینگ شبکه و سرور، Backup & Recovery و فضای ابری سازمانی Orbit Drive.",
   },
 ];
 
@@ -53,7 +53,7 @@ export default function AboutView() {
           <Reveal>
             <LogoMark className="mx-auto size-12" />
             <h1 className="mt-5 text-2xl font-extrabold tracking-tight md:text-4xl">
-              درباره AbrIT
+              درباره Orbit
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
               ارائه‌دهنده خدمات مدیریت‌شده فناوری اطلاعات برای کسب‌وکارهای ایرانی — با تعرفه شفاف و SLA مشخص.
@@ -81,7 +81,7 @@ export default function AboutView() {
           <EmptyState
             icon={<FileText className="size-6" />}
             title="این صفحه هنوز منتشر نشده است"
-            description="محتوای صفحه «درباره AbrIT» از پنل مدیریت منتشر می‌شود و به‌زودی در دسترس قرار می‌گیرد."
+            description="محتوای صفحه «درباره Orbit» از پنل مدیریت منتشر می‌شود و به‌زودی در دسترس قرار می‌گیرد."
             action={
               <Button variant="outline" onClick={() => router.navigate(routes.home)} className="gap-2">
                 بازگشت به صفحه اصلی
@@ -105,7 +105,7 @@ export default function AboutView() {
       <section className="border-t bg-card/40">
         <div className="mx-auto max-w-7xl px-4 py-14 md:px-6 md:py-20">
           <Reveal>
-            <h2 className="text-center text-xl font-extrabold md:text-2xl">ارزش‌های محوری AbrIT</h2>
+            <h2 className="text-center text-xl font-extrabold md:text-2xl">ارزش‌های محوری Orbit</h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-7 text-muted-foreground">
               چهار اصلی که طراحی همه پکیج‌ها و فرآیندهای ما بر پایه آن‌ها شکل گرفته است.
             </p>
@@ -128,7 +128,7 @@ export default function AboutView() {
           <Reveal delay={0.1}>
             <div className="mt-12 text-center">
               <Button size="lg" variant="outline" className="gap-2" onClick={() => router.navigate(routes.contact)}>
-                گفت‌وگو با تیم AbrIT
+                گفت‌وگو با تیم Orbit
                 <ArrowLeft className="size-4" />
               </Button>
             </div>

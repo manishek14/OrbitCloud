@@ -24,7 +24,7 @@ import type { ServiceDTO } from "@/lib/api/types";
 
 const SERVICE_TYPE_LABEL: Record<ServiceDTO["type"], string> = {
   managed_it: "IT مدیریت‌شده",
-  drive: "فضای ابری AbrIT Drive",
+  drive: "فضای ابری Orbit Drive",
 };
 
 /** Compact per-type metadata summary rendered under each card title. */
@@ -79,7 +79,7 @@ export default function PortalServicesView() {
     <>
       <PageHeader
         title="سرویس‌های من"
-        description="سرویس‌های فعال و اشتراک‌های سازمانی شما در AbrIT"
+        description="سرویس‌های فعال و اشتراک‌های سازمانی شما در Orbit"
         breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "سرویس‌های من" }]}
         actions={
           <Button size="sm" onClick={() => router.navigate(routes.portalPlans)}>
@@ -135,7 +135,7 @@ export default function PortalServicesView() {
               <EmptyState
                 icon={<Boxes className="size-6" />}
                 title="هنوز سرویسی برای شما ثبت نشده است"
-                description="با سفارش یکی از پکیج‌های خدمات مدیریت‌شده یا فعال‌سازی فضای ابری AbrIT Drive، سرویس‌های شما اینجا نمایش داده می‌شوند."
+                description="با سفارش یکی از پکیج‌های خدمات مدیریت‌شده یا فعال‌سازی فضای ابری Orbit Drive، سرویس‌های شما اینجا نمایش داده می‌شوند."
                 action={
                   <Button size="sm" onClick={() => router.navigate(routes.portalPlans)}>
                     مشاهده پلن‌ها
