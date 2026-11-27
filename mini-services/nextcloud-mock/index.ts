@@ -1,4 +1,4 @@
-// AbrIT Drive — Nextcloud OCS emulator (simulation mode).
+// Orbit Drive — Nextcloud OCS emulator (simulation mode).
 //
 // Speaks the same User Provisioning API as a real Nextcloud instance
 // (https://docs.nextcloud.com/server/stable/admin_manual/configuration_user/user_provisioning_api.html)
@@ -32,8 +32,8 @@ const DB_FILE = join(DATA_DIR, "db.json");
 const UNLIMITED = -3; // Nextcloud SPACE_UNLIMITED
 const PSEUDO_DISK = 1024 ** 4; // 1 TB "free disk" reported for unlimited users
 
-const ADMIN_USER = (process.env.MOCK_ADMIN_USER ?? "abrit-portal-admin").trim();
-const ADMIN_PASSWORD = (process.env.MOCK_ADMIN_PASSWORD ?? "abrit-simulation-app-password").trim();
+const ADMIN_USER = (process.env.MOCK_ADMIN_USER ?? "orbit-portal-admin").trim();
+const ADMIN_PASSWORD = (process.env.MOCK_ADMIN_PASSWORD ?? "orbit-simulation-app-password").trim();
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -386,8 +386,8 @@ function pageShell(title: string, body: string): string {
 </head>
 <body>
 <header>
-  <span class="logo" aria-hidden="true">A</span>
-  <span class="brand">AbrIT Drive</span>
+  <span class="logo" aria-hidden="true">O</span>
+  <span class="brand">Orbit Drive</span>
   <span class="tag">شبیه‌ساز Nextcloud — فقط برای تست اتصال پنل</span>
 </header>
 <main>${body}</main>
@@ -401,10 +401,10 @@ function loginPage(error?: string, info?: string): string {
     (error ? `<div class="alert error" role="alert">${escapeHtml(error)}</div>` : "") +
     (info ? `<div class="alert info" role="status">${escapeHtml(info)}</div>` : "");
   return pageShell(
-    "ورود — AbrIT Drive",
+    "ورود — Orbit Drive",
     `<div class="card">
   <h1>ورود به فضای ابری</h1>
-  <p class="muted">با نام کاربری و رمز عبوری که از پنل AbrIT تعیین کردید وارد شوید.</p>
+  <p class="muted">با نام کاربری و رمز عبوری که از پنل Orbit تعیین کردید وارد شوید.</p>
   ${alerts}
   <form method="post" action="/login?XTransformPort=3031">
     <label for="user">نام کاربری</label>
@@ -426,10 +426,10 @@ function filesPage(user: MockUser, flash?: string): string {
   const quotaText = unlimited ? "بدون محدودیت" : faBytes(user.quotaBytes);
   const alerts = flash ? `<div class="alert info" role="status">${escapeHtml(flash)}</div>` : "";
   return pageShell(
-    "فایل‌های من — AbrIT Drive",
+    "فایل‌های من — Orbit Drive",
     `<div class="card">
   <h1>سلام ${escapeHtml(user.displayname ?? user.userid)}</h1>
-  <p class="muted">فضای ابری شما در سرویس AbrIT Drive (شبیه‌سازی).</p>
+  <p class="muted">فضای ابری شما در سرویس Orbit Drive (شبیه‌سازی).</p>
   ${alerts}
   <div class="quota-bar" role="img" aria-label="${fa(percent)} درصد پر شده"><div class="${tone}" style="width:${percent}%"></div></div>
   <p class="muted">${faBytes(q.used)} از ${quotaText} استفاده شده — ${fa(percent)}٪</p>
@@ -451,7 +451,7 @@ function filesPage(user: MockUser, flash?: string): string {
 
 function sessionUser(request: Request): MockUser | null {
   const cookie = request.headers.get("Cookie") ?? "";
-  const match = cookie.match(/(?:^|;\s*)abrit_drive_sim=([\w-]+)/);
+  const match = cookie.match(/(?:^|;\s*)orbit_drive_sim=([\w-]+)/);
   if (!match) return null;
   const userid = db.webSessions[match[1]];
   if (!userid) return null;
@@ -467,7 +467,7 @@ async function handleWeb(request: Request, url: URL): Promise<Response> {
       return new Response(filesPage(user), { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
     if (user && !user.enabled) {
-      return new Response(loginPage("حساب شما غیرفعال شده است؛ از پنل کاربری AbrIT دوباره فعالش کنید."), {
+      return new Response(loginPage("حساب شما غیرفعال شده است؛ از پنل کاربری Orbit دوباره فعالش کنید."), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
@@ -489,7 +489,7 @@ async function handleWeb(request: Request, url: URL): Promise<Response> {
         });
       }
       if (!user.enabled) {
-        return new Response(loginPage("حساب شما غیرفعال شده است؛ از پنل کاربری AbrIT دوباره فعالش کنید."), {
+        return new Response(loginPage("حساب شما غیرفعال شده است؛ از پنل کاربری Orbit دوباره فعالش کنید."), {
           status: 403,
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
@@ -503,7 +503,7 @@ async function handleWeb(request: Request, url: URL): Promise<Response> {
         status: 303,
         headers: {
           Location: `/?XTransformPort=3031`,
-          "Set-Cookie": `abrit_drive_sim=${token}; Path=/; HttpOnly; SameSite=Lax`,
+          "Set-Cookie": `orbit_drive_sim=${token}; Path=/; HttpOnly; SameSite=Lax`,
         },
       });
     }
@@ -526,7 +526,7 @@ async function handleWeb(request: Request, url: URL): Promise<Response> {
 
     if (path === "/logout") {
       const cookie = request.headers.get("Cookie") ?? "";
-      const match = cookie.match(/(?:^|;\s*)abrit_drive_sim=([\w-]+)/);
+      const match = cookie.match(/(?:^|;\s*)orbit_drive_sim=([\w-]+)/);
       if (match) {
         delete db.webSessions[match[1]];
         saveDb();
@@ -555,7 +555,7 @@ Bun.serve({
           version: "35.0.1.1",
           versionstring: "35.0.1",
           edition: "",
-          productname: "Nextcloud (AbrIT Simulation)",
+          productname: "Nextcloud (Orbit Simulation)",
           extendedSupport: false,
         });
       }
