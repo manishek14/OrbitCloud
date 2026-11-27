@@ -378,7 +378,7 @@ export const orderService = {
       initiated = await provider.initiate({
         amountToman: order.totalToman,
         orderNumber: order.orderNumber,
-        description: `پرداخت سفارش ${order.orderNumber} — AbrIT`,
+        description: `پرداخت سفارش ${order.orderNumber} — Orbit`,
         callbackUrl,
       });
     } catch (error) {
@@ -760,7 +760,7 @@ export const orderService = {
             await driveService.changeQuota(user, entitledPlanCode);
             await notificationService.notify(user.id, {
               category: "drive",
-              title: "سهمیه AbrIT Drive به‌روزرسانی شد",
+              title: "سهمیه Orbit Drive به‌روزرسانی شد",
               body: "سهمیه فضای ابری شما مطابق پکیج خریداری‌شده در سرور Drive اعمال شد.",
               link: "/portal/drive",
             });
@@ -769,7 +769,7 @@ export const orderService = {
             await notificationService.notify(user.id, {
               category: "drive",
               title: "اعمال سهمیه Drive ناموفق بود",
-              body: "اشتراک شما فعال شد اما اعمال سهمیه جدید روی سرور Drive انجام نشد؛ از صفحه AbrIT Drive همگام‌سازی کنید یا با پشتیبانی تماس بگیرید.",
+              body: "اشتراک شما فعال شد اما اعمال سهمیه جدید روی سرور Drive انجام نشد؛ از صفحه Orbit Drive همگام‌سازی کنید یا با پشتیبانی تماس بگیرید.",
               link: "/portal/drive",
             });
           }
@@ -777,7 +777,7 @@ export const orderService = {
           await notificationService.notify(user.id, {
             category: "drive",
             title: "فضای ابری شما آماده فعال‌سازی است",
-            body: "با توجه به پکیج خریداری‌شده، می‌توانید حساب AbrIT Drive خود را با سهمیه سازمانی فعال کنید.",
+            body: "با توجه به پکیج خریداری‌شده، می‌توانید حساب Orbit Drive خود را با سهمیه سازمانی فعال کنید.",
             link: "/portal/drive",
           });
         }
@@ -901,7 +901,7 @@ export const orderService = {
         data: {
           userId: user.id,
           type: "drive",
-          title: "AbrIT Drive — فضای ابری",
+          title: "Orbit Drive — فضای ابری",
           status: "active",
           activatedAt: new Date(),
           metadataJson,
