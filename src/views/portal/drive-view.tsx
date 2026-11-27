@@ -1,6 +1,6 @@
 "use client";
 
-// AbrIT Drive — the customer's cloud-storage control panel.
+// Orbit Drive — the customer's cloud-storage control panel.
 // HONEST STATES ONLY: the view renders exactly what /api/drive/status returns
 // (ready / not_provisioned / unreachable / auth_failed / not_configured /
 // missing_on_server) with the server's detail messages; nothing is faked.
@@ -294,7 +294,7 @@ function DriveReadyState({ drive }: { drive: DriveOverviewDTO }) {
               <Button asChild size="sm">
                 <a href={drive.loginUrl} target="_blank" rel="noreferrer">
                   <ExternalLink className="size-3.5" />
-                  ورود به AbrIT Drive
+                  ورود به Orbit Drive
                 </a>
               </Button>
               <Button
@@ -509,7 +509,7 @@ function DriveActivationForm({ entitledPlanCode, pendingUsername, detail }: { en
         <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary" aria-hidden="true">
           <Cloud className="size-7" />
         </span>
-        <h2 className="mt-4 text-base font-extrabold">فعال‌سازی فضای ابری AbrIT Drive</h2>
+        <h2 className="mt-4 text-base font-extrabold">فعال‌سازی فضای ابری Orbit Drive</h2>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
           حساب Drive شما ساخته می‌شود؛ نام کاربری و رمز عبورِ ورود به Drive را انتخاب کنید.
           این اطلاعات مستقل از رمز عبور پنل کاربری شماست.
@@ -706,7 +706,7 @@ function DriveActivationForm({ entitledPlanCode, pendingUsername, detail }: { en
 // ---------------------------------------------------------------------------
 
 const STATE_TITLES: Record<string, string> = {
-  unreachable: "سرور AbrIT Drive در دسترس نیست",
+  unreachable: "سرور Orbit Drive در دسترس نیست",
   auth_failed: "اتصال به سرور Drive با خطای اعتبارنامه مواجه شد",
   not_configured: "سرویس Drive هنوز پیکربندی نشده است",
   missing_on_server: "حساب Drive شما روی سرور یافت نشد",
@@ -762,9 +762,9 @@ export default function DriveView() {
   return (
     <>
       <PageHeader
-        title="AbrIT Drive"
+        title="Orbit Drive"
         description="فضای ابری سازمانی شما بر پایه Nextcloud"
-        breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "AbrIT Drive" }]}
+        breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "Orbit Drive" }]}
         actions={
           data ? (
             <Button variant="outline" size="sm" onClick={() => drive.refetch()} disabled={drive.isFetching}>
