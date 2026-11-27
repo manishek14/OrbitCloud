@@ -34,7 +34,7 @@ export type DriveServiceErrorCode =
 const serviceMessages: Record<DriveServiceErrorCode, string> = {
   NOT_AUTHENTICATED: "برای این عملیات باید وارد پنل شوید.",
   ALREADY_LINKED: "برای این حساب کاربری، سرویس Drive قبلاً فعال شده است.",
-  USERNAME_TAKEN: "این نام کاربری در AbrIT Drive قبلاً توسط حساب دیگری ثبت شده است.",
+  USERNAME_TAKEN: "این نام کاربری در Orbit Drive قبلاً توسط حساب دیگری ثبت شده است.",
   INVALID_USERNAME:
     "نام کاربری Drive باید ۳ تا ۳۲ نویسه؛ فقط حروف کوچک انگلیسی، رقم و علامت‌های نقطه، خط تیره و زیرخط باشد و با حرف یا رقم شروع و پایان یابد.",
   INVALID_PASSWORD: "رمز عبور Drive باید حداقل ۸ نویسه و شامل حداقل یک حرف و یک رقم باشد.",
@@ -149,7 +149,7 @@ const statusCache = new Map<string, { expiresAt: number; user: NonNullable<Await
 const STATUS_CACHE_MS = 30_000;
 
 function cacheKey(userId: string): string {
-  return `abrit-drive:${userId}`;
+  return `orbit-drive:${userId}`;
 }
 
 function clearStatusCache(userId: string): void {
@@ -163,7 +163,7 @@ function ncErrorToState(error: NextcloudError): { state: DriveState; detail: str
     case "NC_AUTH_FAILED":
       return { state: "auth_failed", detail: "اعتبارنامه اتصال Drive پذیرفته نشد؛ با مدیر پنل تماس بگیرید." };
     case "NC_NOT_CONFIGURED":
-      return { state: "not_configured", detail: "اتصال AbrIT Drive برای این محیط پیکربندی نشده است." };
+      return { state: "not_configured", detail: "اتصال Orbit Drive برای این محیط پیکربندی نشده است." };
     default:
       return { state: "unreachable", detail: "پاسخ نامعتبر از سرور Drive." };
   }
@@ -248,7 +248,7 @@ function baseOverview(mode: "live" | "simulation"): Pick<DriveOverview, "mode" |
   return {
     mode,
     loginUrl: config.loginUrl,
-    loginUrlLabel: mode === "live" ? "ورود به AbrIT Drive" : "ورود به AbrIT Drive (شبیه‌سازی)",
+    loginUrlLabel: mode === "live" ? "ورود به Orbit Drive" : "ورود به Orbit Drive (شبیه‌سازی)",
     fetchedAt: new Date().toISOString(),
   };
 }
@@ -296,7 +296,7 @@ export const driveService = {
       return {
         ...base,
         state: "not_configured",
-        detail: "اتصال AbrIT Drive برای این محیط پیکربندی نشده است.",
+        detail: "اتصال Orbit Drive برای این محیط پیکربندی نشده است.",
         account: await toAccountDTO(account),
         usage: null,
         events: await loadEvents(account.id),
@@ -387,7 +387,7 @@ export const driveService = {
     if (!config.configured) {
       throw new DriveServiceError("NC_ERROR", {
         httpStatus: 503,
-        publicMessage: "اتصال AbrIT Drive هنوز پیکربندی نشده است.",
+        publicMessage: "اتصال Orbit Drive هنوز پیکربندی نشده است.",
       });
     }
 
