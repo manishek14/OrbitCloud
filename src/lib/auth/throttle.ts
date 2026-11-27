@@ -14,7 +14,7 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const DEV_FALLBACK_SECRET = "abrit-dev-only-throttle-hmac-key";
+const DEV_FALLBACK_SECRET = "orbit-dev-only-throttle-hmac-key";
 
 function throttleSecret(): string {
   const dedicated = (process.env.OTP_HMAC_SECRET ?? "").trim();

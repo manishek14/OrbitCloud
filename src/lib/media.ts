@@ -1,5 +1,5 @@
 // Media library — uploads stored under public/uploads and recorded in the DB.
-// Served as static files by the platform; manageable from the AbrIT Admin.
+// Served as static files by the platform; manageable from the Orbit Admin.
 
 import { randomInt } from "node:crypto";
 import { mkdir, writeFile, unlink } from "node:fs/promises";

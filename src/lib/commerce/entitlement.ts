@@ -1,5 +1,5 @@
 // Subscription entitlements: which commercial package is the customer
-// entitled to right now (drives the AbrIT Drive quota mapping).
+// entitled to right now (drives the Orbit Drive quota mapping).
 // Quotas are ALWAYS derived from the catalog — never stored twice.
 
 import { db } from "@/lib/db";

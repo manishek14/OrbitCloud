@@ -28,7 +28,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
-const DEV_FALLBACK_SECRET = "abrit-dev-only-grant-hmac-key";
+const DEV_FALLBACK_SECRET = "orbit-dev-only-grant-hmac-key";
 let devWarningIssued = false;
 
 function readSecret(envName: string): string | null {

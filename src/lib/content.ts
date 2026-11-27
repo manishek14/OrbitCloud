@@ -1,5 +1,5 @@
 // Content management (CMS-lite) powering the public site: pages, services,
-// FAQ entries and articles — manageable from the AbrIT Admin area.
+// FAQ entries and articles — manageable from the Orbit Admin area.
 
 import { db } from "@/lib/db";
 import type { ContentItem, PanelUser } from "@prisma/client";

@@ -1,6 +1,6 @@
 "use client";
 
-// Typed fetch wrapper for the AbrIT API. All server communication in the
+// Typed fetch wrapper for the Orbit API. All server communication in the
 // client goes through this module (relative URLs only — the gateway routes
 // any non-3000 service ports via the XTransformPort query parameter).
 
