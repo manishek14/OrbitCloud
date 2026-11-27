@@ -46,7 +46,7 @@ export interface RouterApi extends RouteLocation {
 
 const FALLBACK: RouteLocation = { path: "/", query: {}, raw: "/" };
 
-const NAVIGATE_EVENT = "abrit:navigate";
+const NAVIGATE_EVENT = "orbit:navigate";
 
 /**
  * Routes owned by the server — the real Orchard Core application behind the

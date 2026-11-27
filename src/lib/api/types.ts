@@ -88,7 +88,7 @@ export interface CommercialPackageDTO {
   audienceFa: string;
   order: number;
   monthlyPriceToman: number;
-  /** Free plan is not purchasable — activation happens through AbrIT Drive. */
+  /** Free plan is not purchasable — activation happens through Orbit Drive. */
   orderable: boolean;
   includedUsers: number;
   includedEndpoints: number;

@@ -1,8 +1,8 @@
-// Role-based access control for the AbrIT platform.
+// Role-based access control for the Orbit platform.
 //
 // Roles (aligned with the Orchard portal's separation between CMS
 // administrators, staff and customers):
-//   admin   — full access to the AbrIT Admin area and every business module.
+//   admin   — full access to the Orbit Admin area and every business module.
 //   staff   — operational access (tickets, content, orders, drive, reports)
 //             but NOT identity/settings administration.
 //   customer— customer portal only; every /api/admin/* route is closed.
@@ -54,7 +54,7 @@ export const SERVICE_PRINCIPAL: PanelUser = Object.freeze({
 /**
  * EXACT permission set granted to the service token (Orchard CMS). This is
  * the enforced equivalent of the documented "read access plus the explicitly
- * listed actions" contract: everything the AbrIT admin pages actually call
+ * listed actions" contract: everything the Orbit admin pages actually call
  * (dashboard, customers, orders/payments, subscriptions, drive, tickets,
  * reports, pricing catalog) — and nothing else. Destructive/administrative
  * areas (users, settings, maintenance/cleanup, audit, content, media…) stay
