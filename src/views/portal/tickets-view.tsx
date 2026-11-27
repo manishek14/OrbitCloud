@@ -171,7 +171,7 @@ export default function TicketsView() {
     <>
       <PageHeader
         title="تیکت‌های پشتیبانی"
-        description="پیگیری درخواست‌های فنی، مالی و فروش با کارشناسان AbrIT."
+        description="پیگیری درخواست‌های فنی، مالی و فروش با کارشناسان Orbit."
         breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "تیکت‌های پشتیبانی" }]}
         actions={
           <Button size="sm" onClick={openCreateDialog}>

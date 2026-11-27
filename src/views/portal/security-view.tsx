@@ -102,7 +102,7 @@ function ChangePasswordCard() {
         تغییر رمز عبور
       </h2>
       <p className="mt-1.5 text-[11px] leading-5 text-muted-foreground">
-        رمز عبور پنل کاربری شماست؛ رمز عبور ورود به AbrIT Drive جداگانه از صفحه Drive مدیریت می‌شود.
+        رمز عبور پنل کاربری شماست؛ رمز عبور ورود به Orbit Drive جداگانه از صفحه Drive مدیریت می‌شود.
       </p>
       <div className="mt-4 space-y-4">
         <FormField label="رمز عبور فعلی" htmlFor="current-password" required error={errors.current ?? null}>
@@ -305,7 +305,7 @@ const SECURITY_TIPS: { icon: typeof ShieldCheck; title: string; body: string }[]
   {
     icon: KeyRound,
     title: "رمز قوی و یکتا",
-    body: "برای پنل AbrIT رمزی یکتا انتخاب کنید که هیچ‌کدام از سرویس‌های دیگرتان از آن استفاده نمی‌کند.",
+    body: "برای پنل Orbit رمزی یکتا انتخاب کنید که هیچ‌کدام از سرویس‌های دیگرتان از آن استفاده نمی‌کند.",
   },
   {
     icon: LogIn,
@@ -315,7 +315,7 @@ const SECURITY_TIPS: { icon: typeof ShieldCheck; title: string; body: string }[]
   {
     icon: LifeBuoy,
     title: "نگه‌داری امن رمز Drive",
-    body: "رمز عبور ورود به AbrIT Drive جدای از رمز پنل است؛ آن را جداگانه و در جای امن نگه دارید.",
+    body: "رمز عبور ورود به Orbit Drive جدای از رمز پنل است؛ آن را جداگانه و در جای امن نگه دارید.",
   },
 ];
 
@@ -340,7 +340,7 @@ function TipsCard() {
         ))}
       </ul>
       <p className="mt-4 rounded-lg bg-muted/60 px-3 py-2 text-[10px] leading-5 text-muted-foreground">
-        مشکلی در امنیت حساب خود مشاهده می‌کنید؟{" "}
+        مشکلی در امنیت حساب خود مشاهده می‌کنید؟ {" "}
         <Link to={routes.portalTickets} className="font-bold text-primary hover:text-primary/80">
           فوراً با پشتیبانی تماس بگیرید
         </Link>
