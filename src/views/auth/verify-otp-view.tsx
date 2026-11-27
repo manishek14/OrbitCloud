@@ -14,7 +14,7 @@ import { toEnDigits, toFaDigits } from "@/lib/format/fa";
 import { Button } from "@/components/ui/button";
 import { OTPInput, useCopyToClipboard, useCountdown } from "@/components/abrit/otp-input";
 
-const OTP_DISPLAY_KEY = "abrit:otp-display";
+const OTP_DISPLAY_KEY = "orbit:otp-display";
 
 /** 09121111111 → ۰۹۱۲***۱۱۱۱ (middle 3 digits masked). */
 function maskMobile(mobile: string): string {
@@ -86,7 +86,10 @@ export default function VerifyOtpView() {
       {
         onSuccess: (result) => {
           toast.success(`خوش آمدید ${result.user.name ?? ""}!`);
-          router.replace(next && next.startsWith("/") ? next : result.redirect);
+          // Same safe-relative rule as the login view (rebrand review §4,
+          // P2): a `next` of "//evil.com" or "/\\evil.com" is a network-path
+          // reference that leaves the origin — only /^\/(?!\/|\\)/ passes.
+          router.replace(next && /^\/(?!\/|\\)/.test(next) ? next : result.redirect);
         },
         onError: (error) => {
           setOtpInvalid(true);
@@ -211,7 +214,7 @@ export default function VerifyOtpView() {
 
         {verifyOtp.isPending ? (
           <p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
             در حال بررسی کد تأیید…
           </p>
         ) : null}

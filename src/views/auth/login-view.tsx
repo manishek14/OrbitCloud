@@ -50,7 +50,7 @@ export default function LoginView() {
           if (result.delivery === "display" && result.code) {
             try {
               sessionStorage.setItem(
-                "abrit:otp-display",
+                "orbit:otp-display",
                 JSON.stringify({ code: result.code, expiresInSeconds: result.expiresInSeconds, at: Date.now() }),
               );
             } catch {
@@ -98,8 +98,12 @@ export default function LoginView() {
       {
         onSuccess: (result) => {
           toast.success(`خوش آمدید ${result.user.name ?? ""}!`);
+          // `next` may only be a SAFE relative reference (rebrand review §4,
+          // P2): startsWith("/") alone admits network-path references like
+          // "//evil.com" and "/\\evil.com", which leave the origin entirely.
+          // Same rule as the CMS proxy Location sanitizer (FSR-6, rule 1).
           const next = router.query.next;
-          router.replace(next && next.startsWith("/") ? next : result.redirect);
+          router.replace(next && /^\/(?!\/|\\)/.test(next) ? next : result.redirect);
         },
         onError: (error) => toast.error(errorMessage(error)),
       },
