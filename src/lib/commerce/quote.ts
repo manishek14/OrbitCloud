@@ -124,10 +124,10 @@ export function calculateQuote(input: QuoteInput, catalog: Awaited<ReturnType<ty
   if (!pkg) {
     errors.push("پکیج انتخابی معتبر نیست.");
   } else if (!pkg.orderable || !pkg.active) {
-    // The free plan is an activation (AbrIT Drive), never a purchase.
+    // The free plan is an activation (Orbit Drive), never a purchase.
     return {
       valid: false,
-      errors: ["پلن رایگان نیازی به خرید ندارد؛ فضای ابری ۱۰۰ مگابایتی از صفحه AbrIT Drive فعال می‌شود."],
+      errors: ["پلن رایگان نیازی به خرید ندارد؛ فضای ابری ۱۰۰ مگابایتی از صفحه Orbit Drive فعال می‌شود."],
       needsCustomAssessment: false,
       breakdown: null,
       lineItems: [],
