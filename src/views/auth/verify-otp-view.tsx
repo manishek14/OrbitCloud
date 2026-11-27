@@ -14,7 +14,7 @@ import { toEnDigits, toFaDigits } from "@/lib/format/fa";
 import { Button } from "@/components/ui/button";
 import { OTPInput, useCopyToClipboard, useCountdown } from "@/components/abrit/otp-input";
 
-const OTP_DISPLAY_KEY = "abrit:otp-display";
+const OTP_DISPLAY_KEY = "orbit:otp-display";
 
 /** 09121111111 → ۰۹۱۲***۱۱۱۱ (middle 3 digits masked). */
 function maskMobile(mobile: string): string {

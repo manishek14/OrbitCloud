@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, TextField } from "@/components/abrit/form-field";
 import { OTPInput, useCopyToClipboard, useCountdown } from "@/components/abrit/otp-input";
 
-const OTP_DISPLAY_KEY = "abrit:otp-display";
+const OTP_DISPLAY_KEY = "orbit:otp-display";
 const CODE_ERROR_CODES = new Set(["INVALID_CODE", "CODE_EXPIRED", "TOO_MANY_ATTEMPTS"]);
 const TAKEN_ERROR_CODES = new Set(["EMAIL_TAKEN", "MOBILE_TAKEN"]);
 
@@ -336,7 +336,7 @@ export default function RegisterView() {
                     aria-invalid={Boolean(errors.terms) || undefined}
                   />
                   <span className={errors.terms ? "text-destructive" : "text-foreground/90"}>
-                    قوانین و شرایط استفاده از خدمات AbrIT را می‌پذیرم.
+                    قوانین و شرایط استفاده از خدمات Orbit را می‌پذیرم.
                   </span>
                 </label>
                 {errors.terms ? (
@@ -442,7 +442,7 @@ export default function RegisterView() {
       </AnimatePresence>
 
       <div className="mt-8 text-center text-[11px]">
-        حساب دارید؟{" "}
+        حساب دارید؟ {" "}
         <Link to={routes.login} className="font-bold text-primary hover:text-primary/80">
           ورود
         </Link>

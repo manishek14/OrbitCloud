@@ -50,7 +50,7 @@ export default function LoginView() {
           if (result.delivery === "display" && result.code) {
             try {
               sessionStorage.setItem(
-                "abrit:otp-display",
+                "orbit:otp-display",
                 JSON.stringify({ code: result.code, expiresInSeconds: result.expiresInSeconds, at: Date.now() }),
               );
             } catch {
