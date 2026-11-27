@@ -35,8 +35,8 @@ export async function GET() {
         version: "",
         productname: "",
         loginUrl: config.loginUrl,
-        loginUrlLabel: "ورود به AbrIT Drive",
-        message: "اتصال AbrIT Drive هنوز پیکربندی نشده است.",
+        loginUrlLabel: "ورود به Orbit Drive",
+        message: "اتصال Orbit Drive هنوز پیکربندی نشده است.",
         fetchedAt: new Date().toISOString(),
       };
     } else {
@@ -49,7 +49,7 @@ export async function GET() {
           version: ping.version,
           productname: ping.productname,
           loginUrl: config.loginUrl,
-          loginUrlLabel: config.mode === "live" ? "ورود به AbrIT Drive" : "ورود به AbrIT Drive (شبیه‌سازی)",
+          loginUrlLabel: config.mode === "live" ? "ورود به Orbit Drive" : "ورود به Orbit Drive (شبیه‌سازی)",
           message:
             config.mode === "live"
               ? `اتصال واقعی برقرار است — Nextcloud ${ping.version}`
@@ -68,7 +68,7 @@ export async function GET() {
           version: "",
           productname: "",
           loginUrl: config.loginUrl,
-          loginUrlLabel: "ورود به AbrIT Drive",
+          loginUrlLabel: "ورود به Orbit Drive",
           message: detail,
           fetchedAt: new Date().toISOString(),
         };

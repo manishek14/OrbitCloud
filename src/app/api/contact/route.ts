@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       message: String(body?.message ?? ""),
     });
     return NextResponse.json(
-      { ok: true, message: "پیام شما ثبت شد؛ کارشناسان AbrIT به‌زودی با شما تماس می‌گیرند." },
+      { ok: true, message: "پیام شما ثبت شد؛ کارشناسان Orbit به‌زودی با شما تماس می‌گیرند." },
       { status: 201 },
     );
   } catch (error) {

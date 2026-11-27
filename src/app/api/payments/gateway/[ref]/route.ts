@@ -58,7 +58,7 @@ function gatewayPage(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>درگاه پرداخت آزمایشی AbrIT</title>
+<title>درگاه پرداخت آزمایشی Orbit</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Vazirmatn, Tahoma, sans-serif; }
@@ -85,7 +85,7 @@ function gatewayPage(
 <body>
   <main class="card">
     <span class="badge">● درگاه پرداخت آزمایشی — Sandbox</span>
-    <h1>پرداخت سفارش AbrIT</h1>
+    <h1>پرداخت سفارش Orbit</h1>
     <p class="sub">این صفحه شبیه‌ساز درگاه پرداخت است و هیچ مبلغ واقعی دریافت نمی‌کند.</p>
     ${orderNumber ? `<div class="row"><span class="k">شماره سفارش</span><span>${orderNumber}</span></div>` : ""}
     ${ref ? `<div class="row"><span class="k">مرجع تراکنش</span><span>${ref}</span></div>` : ""}

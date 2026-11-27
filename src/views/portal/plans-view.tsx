@@ -68,7 +68,7 @@ export default function PortalPlansView() {
     <>
       <PageHeader
         title="پلن‌ها و تعرفه"
-        description="پکیج‌های خدمات مدیریت‌شده فناوری اطلاعات AbrIT — قیمت‌ها ماهانه و بر پایه تعرفه رسمی ۱۴۰۵ محاسبه می‌شوند."
+        description="پکیج‌های خدمات مدیریت‌شده فناوری اطلاعات Orbit — قیمت‌ها ماهانه و بر پایه تعرفه رسمی ۱۴۰۵ محاسبه می‌شوند."
         breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "پلن‌ها و تعرفه" }]}
       />
 

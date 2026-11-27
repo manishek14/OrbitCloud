@@ -1,5 +1,5 @@
 // POST /api/drive/activate — provision (or safely recover) the customer's
-// AbrIT Drive (Nextcloud) account.
+// Orbit Drive (Nextcloud) account.
 //
 // ENTITLEMENT ENFORCEMENT (audit fix): the request body's planCode is NEVER
 // trusted. The activatable plan is resolved server-side from the customer's
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     await orderService.ensureDriveServiceRecord(user, planCode, parsed.data.username);
     await notificationService.notify(user.id, {
       category: "drive",
-      title: "سرویس AbrIT Drive فعال شد",
+      title: "سرویس Orbit Drive فعال شد",
       body: `حساب Drive شما با نام کاربری ${parsed.data.username} ساخته شد و سهمیه آن اعمال گردید.`,
       link: "/portal/drive",
     });
