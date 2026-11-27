@@ -28,7 +28,7 @@ import { formatBytes, formatDateTime, toFaDigits } from "@/lib/format/fa";
 
 const SERVICE_TYPE_LABEL: Record<string, string> = {
   managed_it: "IT مدیریت‌شده",
-  drive: "فضای ابری AbrIT Drive",
+  drive: "فضای ابری Orbit Drive",
 };
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -181,15 +181,15 @@ export default function PortalServiceDetailView({ id }: { id: string }) {
                 <div className="min-w-0">
                   <h3 className="flex items-center gap-2 text-sm font-extrabold">
                     <Cloud className="size-4 text-info" />
-                    فضای ابری AbrIT Drive
+                    فضای ابری Orbit Drive
                   </h3>
                   <p className="mt-2 text-xs leading-6 text-muted-foreground">
                     مصرف فضا، ورود به Drive، تغییر سهمیه و رویدادهای حساب از صفحه اختصاصی
-                    AbrIT Drive مدیریت می‌شود.
+                    Orbit Drive مدیریت می‌شود.
                   </p>
                   {meta.ncUsername ? (
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      نام کاربری Drive:{" "}
+                      نام کاربری Drive: {" "}
                       <span className="ltr-iso rounded bg-muted px-1.5 py-0.5 font-bold" dir="ltr">
                         {String(meta.ncUsername)}
                       </span>
@@ -198,7 +198,7 @@ export default function PortalServiceDetailView({ id }: { id: string }) {
                 </div>
                 <Button size="sm" className="shrink-0" onClick={() => router.navigate(routes.portalDrive)}>
                   <Cloud className="size-3.5" />
-                  مدیریت از صفحه AbrIT Drive
+                  مدیریت از صفحه Orbit Drive
                 </Button>
               </div>
             </Reveal>

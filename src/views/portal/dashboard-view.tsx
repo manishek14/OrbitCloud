@@ -124,7 +124,7 @@ export default function PortalDashboardView() {
           <div className="flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-extrabold">
               <Cloud className="size-4 text-primary" />
-              فضای ابری AbrIT Drive
+              فضای ابری Orbit Drive
             </h3>
             <Link
               to={routes.portalDrive}
@@ -158,7 +158,7 @@ export default function PortalDashboardView() {
                 description={
                   data.drive.state === "not_provisioned"
                     ? "حساب فضای ابری خود را با چند کلیک فعال کنید؛ سهمیه مطابق پلن شما اعمال می‌شود."
-                    : "وضعیت سرور Drive هم‌اکنون قابل دریافت نیست؛ از صفحه AbrIT Drive دوباره تلاش کنید."
+                    : "وضعیت سرور Drive هم‌اکنون قابل دریافت نیست؛ از صفحه Orbit Drive دوباره تلاش کنید."
                 }
                 action={
                   <Button size="sm" onClick={() => router.navigate(routes.portalDrive)}>
