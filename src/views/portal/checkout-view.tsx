@@ -361,7 +361,7 @@ export default function CheckoutView() {
                         }}
                         onBlur={validateTitle}
                         invalid={!!titleError}
-                        placeholder="مثال: شرکت فناوران داده AbrIT"
+                        placeholder="مثال: شرکت فناوران داده Orbit"
                         autoComplete="name"
                       />
                     </FormField>
@@ -375,7 +375,7 @@ export default function CheckoutView() {
                         id="invoice-company"
                         value={invoiceCompany}
                         onChange={(e) => setCompanyOverride(e.target.value)}
-                        placeholder="مثال: AbrIT Data Co."
+                        placeholder="مثال: Orbit Data Co."
                         autoComplete="organization"
                       />
                     </FormField>
@@ -441,7 +441,7 @@ export default function CheckoutView() {
                       <PriceTag toman={summaryTotal} className="text-sm font-extrabold text-primary" />
                     </div>
                     <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                      گیرنده فاکتور:{" "}
+                      گیرنده فاکتور: {" "}
                       <span className="font-bold text-foreground">{invoiceTitle.trim()}</span>
                       {invoiceCompany.trim() ? (
                         <>
@@ -569,7 +569,7 @@ export default function CheckoutView() {
                       <div className="min-w-0">
                         <p className="truncate text-xs font-bold">{line.name}</p>
                         <p className="mt-0.5 text-[10px] text-muted-foreground">
-                          مدت {toFaDigits(line.months)} ماه · {toFaDigits(line.users)} کاربر ·{" "}
+                          مدت {toFaDigits(line.months)} ماه · {toFaDigits(line.users)} کاربر · {" "}
                           {toFaDigits(line.endpoints)} Endpoint
                         </p>
                       </div>
