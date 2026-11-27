@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -18,7 +18,7 @@
     <div class="portal-header__inner">
       <a class="portal-brand" href="/services">
         <span class="portal-brand__mark"><svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#0B2447"/><path d="M13.5 34.5 24 13l10.5 21.5" stroke="#F4F8FF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.2 26.6h11.6" stroke="#3E9BFF" stroke-width="4.4" stroke-linecap="round"/></svg></span>
-        <span>AbrIT<span class="portal-brand__sub">پرتال مشتریان</span></span>
+        <span>Orbit<span class="portal-brand__sub">پرتال مشتریان</span></span>
       </a>
       <input type="checkbox" id="portal-nav-toggle" class="portal-nav-toggle">
       <label class="portal-nav-burger" for="portal-nav-toggle" aria-label="نمایش منو"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></label>
@@ -27,7 +27,7 @@
         {% if User.Identity.IsAuthenticated %}
         <a class="portal-nav__link" href="/dashboard">داشبورد</a>
         <a class="portal-nav__link" href="/account">حساب کاربری</a>
-        <a class="portal-nav__link" href="/drive">AbrIT Drive</a>
+        <a class="portal-nav__link" href="/drive">Orbit Drive</a>
         <span class="portal-nav__spacer"></span>
         <div class="portal-nav__auth">
           <a class="portal-userchip" href="/account" title="حساب کاربری"><span class="portal-userchip__avatar" aria-hidden="true">{{ User.Identity.Name | slice: 0 }}</span><span>{{ User.Identity.Name }}</span></a>
@@ -47,8 +47,8 @@
   <footer class="portal-footer">
     <div class="portal-footer__grid">
       <div>
-        <div class="portal-footer__brand"><span class="portal-brand__mark"><svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#0B2447"/><path d="M13.5 34.5 24 13l10.5 21.5" stroke="#F4F8FF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.2 26.6h11.6" stroke="#3E9BFF" stroke-width="4.4" stroke-linecap="round"/></svg></span><span>AbrIT</span></div>
-        <p>پرتال مشتریان AbrIT برای مدیریت خدمات و سفارش‌های ابری شما.</p>
+        <div class="portal-footer__brand"><span class="portal-brand__mark"><svg width="22" height="22" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect width="48" height="48" rx="11" fill="#0B2447"/><path d="M13.5 34.5 24 13l10.5 21.5" stroke="#F4F8FF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.2 26.6h11.6" stroke="#3E9BFF" stroke-width="4.4" stroke-linecap="round"/></svg></span><span>Orbit</span></div>
+        <p>پرتال مشتریان Orbit برای مدیریت خدمات و سفارش‌های ابری شما.</p>
       </div>
       <div>
         <h3 class="portal-footer__title">دسترسی سریع</h3>
@@ -56,7 +56,7 @@
           {% if User.Identity.IsAuthenticated %}
           <li><a href="/dashboard">داشبورد</a></li>
           <li><a href="/services">سرویس‌ها</a></li>
-          <li><a href="/drive">AbrIT Drive</a></li>
+          <li><a href="/drive">Orbit Drive</a></li>
           <li><a href="/account">حساب کاربری</a></li>
           {% else %}
           <li><a href="/services">سرویس‌ها</a></li>
@@ -73,7 +73,7 @@
         </ul>
       </div>
     </div>
-    <div class="portal-footer__bottom">© AbrIT — تمامی حقوق محفوظ است.{% render_section "Footer", required: false %}</div>
+    <div class="portal-footer__bottom">© Orbit — تمامی حقوق محفوظ است.{% render_section "Footer", required: false %}</div>
   </footer>
   {% resources type: "FootScript" %}
   <script>
