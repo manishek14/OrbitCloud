@@ -45,7 +45,7 @@ export const publicNav = [
   { to: routes.home, label: "خانه" },
   { to: routes.services, label: "خدمات" },
   { to: routes.plans, label: "پلن‌ها و تعرفه" },
-  { to: routes.about, label: "درباره AbrIT" },
+  { to: routes.about, label: "درباره Orbit" },
   { to: routes.contact, label: "تماس با ما" },
   { to: routes.faq, label: "سوالات متداول" },
 ] as const;

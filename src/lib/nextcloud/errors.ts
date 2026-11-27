@@ -14,10 +14,10 @@ export type NextcloudErrorCode =
   | "NC_ERROR";
 
 const messages: Record<NextcloudErrorCode, string> = {
-  NC_NOT_CONFIGURED: "اتصال AbrIT Drive هنوز پیکربندی نشده است.",
+  NC_NOT_CONFIGURED: "اتصال Orbit Drive هنوز پیکربندی نشده است.",
   NC_UNREACHABLE: "سرور Drive در دسترس نیست.",
   NC_AUTH_FAILED: "اعتبارنامه Drive پذیرفته نشد.",
-  NC_USER_EXISTS: "این نام کاربری در AbrIT Drive قبلاً ثبت شده است.",
+  NC_USER_EXISTS: "این نام کاربری در Orbit Drive قبلاً ثبت شده است.",
   NC_INVALID_USERNAME: "نام کاربری Drive معتبر نیست.",
   NC_INVALID_PASSWORD: "رمز عبور Drive معتبر نیست.",
   NC_WEAK_PASSWORD: "این رمز عبور رایج یا افشاشده است؛ رمز قوی و منحصربه‌فرد دیگری انتخاب کنید.",
