@@ -26,12 +26,33 @@ reviewed commits. Read together with [`ORCHARD_HOSTING_GUIDE.md`](ORCHARD_HOSTIN
 |---|---|
 | `0571ab3` | catalog + drive plans display strings, root metadata, favicon |
 | `a8b6437` | Logo wordmark component → **Orb+it** |
-| `3d15c2ea` | public + auth layout brand strings |
+| `3d15c2e` | public + auth layout brand strings |
 | `6e18534` | portal layout shell, plan-card strings, README |
-| `7c81b6cb` | Orchard admin theme chrome (login/forgot/reset/dashboard branding, admin menu labels), `orbit-icon.svg` |
+| `7c81b6c` | Orchard admin theme chrome (login/forgot/reset/dashboard branding, admin menu labels), `orbit-icon.svg` |
 | `d0666de` | CMS-unavailable fallback page, `/api/health` + `/api/liveness` service name, `public/brand/orbit-*` assets |
-| `d3a527f8`…`e7c31ad` | replaced `abrit-*.svg` assets deleted |
+| `d3a527f`…`e7c31ad` | replaced `abrit-*.svg` assets deleted |
 | `9dadf15` | residual document-name token (`Orbit_Packages_1405_Final`) |
+| `b959104` | public homepage brand strings |
+| `7690c4f` | about/faq/services page brand strings |
+| `e8684e0` | plans + contact page brand strings |
+| `c13d669` | portal dashboard/services/service-detail brand strings |
+| `453b0fb` | AbrITBusinessAdminController messages + PortalShell chrome |
+| `b9f3710` | AbrITBusinessAdmin views ×12 brand strings |
+| `1974477` | AbrITPortalTheme layout chrome + `orbit-icon.svg`/`orbit-logo.svg` assets |
+| `11ddff7` | Drive doc renamed → `docs/ORBIT_DRIVE_INTEGRATION.md` |
+| `97b8dfa` | drive/contact/gateway API copy + portal plans/settings pages |
+| `1dc650f` | portal drive page brand strings |
+| `704bbac` | checkout invoice placeholder copy |
+| `855fcec` | plan configurator + profile page brand strings |
+| `eb330b0` | security + tickets page brand strings |
+| `2d9de8c` | README points at the renamed Drive doc |
+| `f357053` | old-name `docs/ABRIT_DRIVE_INTEGRATION.md` deleted |
+| `51d0016`/`53a07d2` | replaced portal-theme `abrit-icon.svg`/`abrit-logo.svg` deleted |
+
+**Completion state**: every user-visible brand surface (portal public/auth/portal
+pages, Orchard admin + business views + portal theme chrome, API copy, docs,
+assets) now reads **Orbit**. The residual `abrit` tokens are exactly the
+contract/infrastructure identifiers in §3.
 
 ## 3. Deliberately KEPT identifiers (do **not** grep-hack these)
 
@@ -43,18 +64,15 @@ cutover in the same release):
 |---|---|---|
 | `ABRIT_SERVICE_TOKEN`, `ABRIT_TRUSTED_PUBLIC_HOSTS`, `ABRIT_TRUST_PROXY_HEADERS`, `ABRIT_CSP`, `ABRIT_PAYMENTS_*`, `ABRIT_PROXY_MAX_BODY_BYTES` | env names across portal/compose/docs | live Vercel env contract — renaming requires a same-deploy Vercel env update |
 | `abrit_session` cookie, `x-abrit-service-token` header | portal ⇄ CMS contract | service-to-service contract; rename both sides + rotate in one release |
-| `AbrITPortal`, `AbrITAdminTheme`, `AbrITPortalTheme` | C# projects, themes, csproj/slnx | Orchard module identity; needs project/namespace/folder refactor |
+| `AbrITPortal`, `AbrITAdminTheme`, `AbrITPortalTheme` (+ `.csproj`/`.slnx`/tests projects) | C# projects, themes, csproj/slnx | Orchard module identity; needs project/namespace/folder refactor (~230 files) |
 | `abrit_portal`, `abrit_orchard` | DB names (init/compose) | renaming DBs needs a data migration |
 | `drive.abrit.cloud` | Nextcloud config | live production host |
 | `demo@abrit.ir`, `admin@abrit.ir` | seed + login hint | matches the seeded demo accounts |
-| `ManageAbrITOperations`, `/Admin/AbrIT/*` URLs | C# permission + admin routes | matches the C# controller/provider contract |
-| `abrit-*` CSS classes | matched 1:1 with the (unrenamed) stylesheets | stylesheet rename must land with the class rename |
-
-Also still carrying the old brand (queued follow-up batch): the 15
-`AbrITBusinessAdmin` views, `PortalShell.cs`, `AbrITPortalTheme` liquid views,
-`mini-services/nextcloud-mock`, `prisma/seed.ts` demo emails, docker/compose
-env plumbing, and the historical audit reports in `docs/` (left as historical
-records).
+| `ManageAbrITOperations`, `/Admin/AbrIT/*` URLs, `AbrIT:CommerceApi` config key | C# permission + admin routes + appsettings | matches the C# controller/provider contract |
+| `abrit-*` CSS classes AND `abrit-admin.css` / `admin-abrit.css` / `abrit-portal*.css` stylesheet filenames | Orchard stylesheets + `ResourceManagementOptionsConfiguration.cs` + `PortalShell.cs` + liquid `asset_url` refs | class rename and stylesheet rename must land in the same release |
+| `src/components/abrit/` folder + `@/components/abrit/*` imports | shared UI library, ~40 importers | pure refactor (type-checked); queued follow-up — recreate 9 files under `orbit/` and update all importers atomically |
+| `AbrITService` content type, `Content-AbrITService.*.liquid` templates, `AbrIT.setup.recipe.json` | Orchard recipe + theme templates | content-type/recipe identity; rename requires recipe + content-type migration |
+| `docs/` historical audit reports (2026-11-13 era) | historical records | left as-is on purpose; they document the state at their commit dates |
 
 ## 4. Security findings (verified this round)
 
@@ -71,7 +89,8 @@ records).
 
 **Note on the previously flagged proxy open-redirect**: verified **fixed** in
 the current code — `sanitizeUpstreamLocation` (FSR-6) reduces every upstream
-`Location` to a safe relative path and rejects network-path references.
+`Location` to a safe relative path and rejects network-path references
+(`trustedRedirectOrigins`, `src/app/[...path]/route.ts:265-311`).
 
 ## 5. Recommendations (ordered)
 
@@ -83,4 +102,4 @@ the current code — `sanitizeUpstreamLocation` (FSR-6) reduces every upstream
    `ORCHARD_PROXY_TARGET` + `ABRIT_TRUSTED_PUBLIC_HOSTS=orbitcloud.vercel.app`
    in Vercel.
 6. Schedule the identifier-tier rename as one coordinated release (env vars +
-   cookie/header + C# project names + CSS classes).
+   cookie/header + C# project names + CSS classes + `src/components/abrit/`).
