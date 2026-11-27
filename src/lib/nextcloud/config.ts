@@ -1,7 +1,7 @@
 // Nextcloud connection configuration (server-side only).
 //
 // Two modes:
-//  - "live":       talks to the real AbrIT Drive at https://drive.abrit.cloud.
+//  - "live":       talks to the real Orbit Drive at https://drive.abrit.cloud.
 //                 Requires NEXTCLOUD_ADMIN_USER / NEXTCLOUD_ADMIN_APP_PASSWORD
 //                 (an app password created in Nextcloud: Settings → Security).
 //  - "simulation": talks to the bundled Nextcloud emulator mini-service
@@ -27,8 +27,8 @@ export interface NextcloudConfig {
 }
 
 const SIM_BASE_URL = "http://127.0.0.1:3031";
-const SIM_ADMIN_USER = "abrit-portal-admin";
-const SIM_ADMIN_PASSWORD = "abrit-simulation-app-password";
+const SIM_ADMIN_USER = "orbit-portal-admin";
+const SIM_ADMIN_PASSWORD = "orbit-simulation-app-password";
 
 function env(key: string, fallback = ""): string {
   const value = process.env[key];
