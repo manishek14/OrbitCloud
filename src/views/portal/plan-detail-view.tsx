@@ -201,11 +201,11 @@ export default function PortalPlanDetailView({ code }: { code: string }) {
         <div className="mx-auto max-w-xl rounded-2xl border border-success/30 bg-success/5 p-6 text-center">
           <h2 className="text-sm font-extrabold">پلن رایگان نیازی به خرید ندارد</h2>
           <p className="mt-2 text-xs leading-6 text-muted-foreground">
-            فضای ابری ۱۰۰ مگابایتی AbrIT Drive از صفحه AbrIT Drive و با یک کلیک فعال می‌شود؛
+            فضای ابری ۱۰۰ مگابایتی Orbit Drive از صفحه Orbit Drive و با یک کلیک فعال می‌شود؛
             برای خدمات مدیریت‌شده یکی از پکیج‌های پولی را انتخاب کنید.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <Button onClick={() => router.navigate(routes.portalDrive)}>فعال‌سازی AbrIT Drive</Button>
+            <Button onClick={() => router.navigate(routes.portalDrive)}>فعال‌سازی Orbit Drive</Button>
             <Button variant="outline" onClick={() => router.navigate(routes.portalPlans)}>
               مشاهده پکیج‌های خرید
             </Button>
@@ -416,7 +416,7 @@ export default function PortalPlanDetailView({ code }: { code: string }) {
                     ) : null}
                     {quoteData.snapshot ? (
                       <p className="mt-2 text-[9px] text-muted-foreground/70">
-                        شناسه برآورد:{" "}
+                        شناسه برآورد: {" "}
                         <span className="ltr-iso" dir="ltr">{quoteData.snapshot.quoteId}</span>
                       </p>
                     ) : null}
@@ -430,7 +430,7 @@ export default function PortalPlanDetailView({ code }: { code: string }) {
                         نیازمند برآورد اختصاصی
                       </p>
                       <p className="mt-2 text-[11px] leading-6 text-warning/90">
-                        برای بیش از {toFaDigits(data.limits.maxQuotableUsers)} کاربر یا{" "}
+                        برای بیش از {toFaDigits(data.limits.maxQuotableUsers)} کاربر یا {" "}
                         {toFaDigits(data.limits.maxQuotableEndpoints)} Endpoint، پکیج Enterprise Custom پس از
                         Assessment اولیه برآورد می‌شود.
                       </p>
@@ -440,7 +440,7 @@ export default function PortalPlanDetailView({ code }: { code: string }) {
                         className="mt-3 w-full border-warning/50 text-warning hover:bg-warning/10"
                         onClick={() => router.navigate(routes.contact)}
                       >
-                        درخواست Assessment و تماس با AbrIT
+                        درخواست Assessment و تماس با Orbit
                       </Button>
                     </div>
                   ) : (

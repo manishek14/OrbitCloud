@@ -108,7 +108,7 @@ export default function ProfileView() {
     <>
       <PageHeader
         title="پروفایل"
-        description="اطلاعات حساب کاربری شما در پنل AbrIT"
+        description="اطلاعات حساب کاربری شما در پنل Orbit"
         breadcrumbs={[{ label: "پنل کاربری", to: routes.portal }, { label: "پروفایل" }]}
       />
 
@@ -123,7 +123,7 @@ export default function ProfileView() {
               {initials}
             </span>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-extrabold">{user.name ?? "کاربر AbrIT"}</h2>
+              <h2 className="truncate text-base font-extrabold">{user.name ?? "کاربر Orbit"}</h2>
               <p className="ltr-iso mt-1 truncate text-xs text-muted-foreground" dir="ltr">
                 {user.email}
               </p>
@@ -216,7 +216,7 @@ export default function ProfileView() {
               />
             </div>
             <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-[10px] leading-5 text-muted-foreground">
-              شماره موبایل شناسه ورود شماست؛ برای تغییر با پشتیبانی تماس بگیرید:{" "}
+              شماره موبایل شناسه ورود شماست؛ برای تغییر با پشتیبانی تماس بگیرید: {" "}
               <Link to={routes.portalTickets} className="font-bold text-primary hover:text-primary/80">
                 ثبت تیکت پشتیبانی
               </Link>
