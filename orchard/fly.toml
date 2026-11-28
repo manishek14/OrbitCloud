@@ -1,0 +1,58 @@
+# fly.toml — Orbit CMS (Orchard Core 3.x) on Fly.io
+#
+# The CMS is the REAL /admin application (.NET 10 long-running container with
+# state). Vercel cannot host .NET; the portal proxy (src/app/[...path]/route.ts,
+# ORCHARD_PROXY_TARGET) fronts this machine, so the admin is reached at
+# https://<portal-domain>/admin while the container runs here. Plain HTTP on
+# the internal port — TLS terminates at the Vercel edge and at Fly's edge.
+#
+# Deploy (run inside this orchard/ directory):
+#   fly apps create orbitcloud-cms
+#   fly volumes create cms_appdata --size 3 --region fra   # region near your users
+#   fly secrets set \
+#     AbrIT__CommerceApi__BaseUrl=https://<portal-domain> \
+#     AbrIT__CommerceApi__ServiceToken=<same value as the portal's ABRIT_SERVICE_TOKEN>
+#   fly deploy
+#
+# First run: open the public Fly URL once and complete the Orchard setup
+# screen (PostgreSQL + the abrit_orchard Neon connection string, then create
+# the first admin). Full walkthrough: docs/ORCHARD_HOSTING_GUIDE.md.
+# NOTE: /var/lib/abrit-portal/* (imagesharp cache, data-protection keys) is
+# ephemeral on this single-volume layout — a machine replacement invalidates
+# Orchard admin sessions (re-login required); media/tenants persist.
+
+app = "orbitcloud-cms"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://0.0.0.0:5000"
+
+# Orchard runtime state (tenants, media, uploaded content) — survives deploys.
+[mounts]
+  source = "cms_appdata"
+  destination = "/app/App_Data"
+
+[http_service]
+  internal_port = 5000
+  force_https = true
+  # The CMS SMS outbox processor needs an always-on machine — no auto-stop.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  # Mirrors the image HEALTHCHECK: /admin answers 200/3xx once Kestrel is up.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "60s"
+    method = "get"
+    path = "/admin"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
